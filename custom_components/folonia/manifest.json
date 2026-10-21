@@ -1,0 +1,14 @@
+{
+  "domain": "folonia",
+  "name": "Folonia",
+  "codeowners": ["@folonia"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/folonia/folonia-home-assistant",
+  "integration_type": "service",
+  "iot_class": "cloud_push",
+  "issue_tracker": "https://github.com/folonia/folonia-home-assistant/issues",
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "0.3.0"
+}

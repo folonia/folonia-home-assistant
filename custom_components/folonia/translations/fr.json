@@ -1,0 +1,74 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Relier votre maison à Oscar",
+        "description": "Dans votre espace Folonia (Votre compte, Maison), obtenez un code de huit caractères, valable dix minutes, et saisissez-le ici.\n\nC’est votre maison qui se connecte à Folonia : aucun port n’est ouvert chez vous, et Folonia ne reçoit aucun jeton de Home Assistant. Par défaut, Oscar ne voit rien : vous choisirez ensuite, dans les options, ce qu’il peut lire.",
+        "data": {
+          "code": "Code",
+          "url": "Adresse du service",
+          "verify_ssl": "Vérifier le certificat"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Relier de nouveau votre maison",
+        "description": "Folonia a délié cette maison (depuis votre espace client, ou par un nouvel appariement). Pour la relier, obtenez un nouveau code dans votre espace et saisissez-le ici.",
+        "data": {
+          "code": "Code"
+        }
+      }
+    },
+    "error": {
+      "invalid_code": "Code inconnu, expiré ou déjà utilisé. Demandez-en un nouveau dans votre espace Folonia.",
+      "invalid_url": "Adresse invalide : elle commence par https:// (ou http:// au laboratoire).",
+      "cannot_connect": "Folonia est injoignable. Vérifiez la connexion à Internet et réessayez.",
+      "rate_limited": "Trop d’essais. Réessayez dans quelques minutes."
+    },
+    "abort": {
+      "single_instance_allowed": "Cette maison est déjà reliée à Folonia.",
+      "reauth_successful": "Votre maison est de nouveau reliée."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Ce qu’Oscar peut lire et commander",
+        "description": "Cochez, un par un, les appareils dont Oscar pourra dire l’état au téléphone, puis ceux qu’il pourra commander (allumer, éteindre, ouvrir, fermer, régler, lancer une scène). Seuls ceux que vous exposez déjà aux assistants vocaux sont proposés ; retirer l’exposition les retire aussi à Oscar.\n\n⚠ Présence, serrures, alarme, portes et fenêtres disent quand votre maison est vide. Par défaut, Oscar n’en dit l’état qu’après le code du verrou vocal ; décochez « Code pour lire les appareils sensibles » pour qu’il le dise à quiconque appelle depuis votre numéro.\n\n🔒 Déverrouiller, désarmer l’alarme, ouvrir le portail ou la porte de garage exigent toujours un code de quatre à huit chiffres, dit au téléphone et vérifié ici : Folonia ne le connaît pas. Verrouiller, armer, fermer et arrêter n’en demandent pas. Code actuel : {lock_state}. Laissez le champ vide pour le garder. Cinq codes faux en vingt-quatre heures, en lecture comme en commande, bloquent le code ; éteindre puis rallumer « Accès d’Oscar » le débloque.\n\nChaque lecture et chaque commande sont inscrites au journal de bord. L’interrupteur « Accès d’Oscar » coupe tout.",
+        "data": {
+          "read": "Appareils qu’Oscar peut lire",
+          "control": "Appareils qu’Oscar peut commander",
+          "lock_code": "Code du verrou vocal (4 à 8 chiffres)",
+          "lock_read": "Code pour lire les appareils sensibles"
+        },
+        "data_description": {
+          "lock_read": "Coché : présence, serrures, alarme, portes et fenêtres ne sont lues qu’après le code du verrou vocal."
+        }
+      }
+    },
+    "abort": {
+      "nothing_exposed": "Aucune entité n’est exposée aux assistants vocaux. Exposez d’abord celles que vous voulez pouvoir montrer (Paramètres, Assistants vocaux, Exposer), puis revenez ici."
+    },
+    "error": {
+      "invalid_lock_code": "Le code est fait de quatre à huit chiffres.",
+      "lock_code_required": "Choisissez un code du verrou vocal : une serrure, l’alarme, un portail ou une porte de garage est cochée en commande, ou un appareil sensible est partagé alors que « Code pour lire les appareils sensibles » est coché."
+    }
+  },
+  "entity": {
+    "switch": {
+      "access": {
+        "name": "Accès d’Oscar"
+      }
+    },
+    "binary_sensor": {
+      "link": {
+        "name": "Liaison"
+      }
+    }
+  },
+  "issues": {
+    "protocol": {
+      "title": "Mettre à jour l’intégration Folonia",
+      "description": "Le service Folonia ne parle plus la version du protocole de cette intégration. Mettez-la à jour depuis HACS, puis redémarrez Home Assistant."
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Folonia",
+  "homeassistant": "2025.2.0",
+  "country": ["FR"],
+  "render_readme": true
+}

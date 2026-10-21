@@ -1,0 +1,20 @@
+{
+  "entity": {
+    "switch": {
+      "access": {
+        "default": "mdi:home-account",
+        "state": {
+          "off": "mdi:home-off-outline"
+        }
+      }
+    },
+    "binary_sensor": {
+      "link": {
+        "default": "mdi:link-variant",
+        "state": {
+          "off": "mdi:link-variant-off"
+        }
+      }
+    }
+  }
+}

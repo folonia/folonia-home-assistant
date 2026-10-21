@@ -1,0 +1,38 @@
+# Validation de l'intégration : conformité Home Assistant (hassfest), dépôt HACS,
+# lint et tests contre le cœur de Home Assistant. Actions épinglées par empreinte.
+name: Validation
+
+on:
+  push:
+  pull_request:
+  schedule:
+    # Chaque lundi : une version de Home Assistant peut casser l'intégration sans commit.
+    - cron: '0 5 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  hassfest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: home-assistant/actions/hassfest@06749dd8c0b54f350bc69c8752456cee498808a3 # master du 2026-10-04
+
+  hacs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hacs/action@d556e736723344f83838d08488c983a15381059a # 22.5.0
+        with:
+          category: integration
+
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      - run: uv venv --python 3.13 .venv
+      - run: uv pip install --python .venv/bin/python -r requirements_test.txt
+      - run: .venv/bin/ruff check .
+      - run: .venv/bin/ruff format --check .
+      - run: .venv/bin/python -m pytest -q

@@ -1,0 +1,74 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Link your home to Oscar",
+        "description": "In your Folonia account (Account, Home), get an eight-character code, valid for ten minutes, and enter it here.\n\nYour home connects to Folonia: no port is opened on your network, and Folonia never receives a Home Assistant token. By default, Oscar sees nothing: you will choose, in the options, what he may read.",
+        "data": {
+          "code": "Code",
+          "url": "Service address",
+          "verify_ssl": "Verify the certificate"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Link your home again",
+        "description": "Folonia unlinked this home (from your account, or by a newer pairing). Get a new code in your account and enter it here.",
+        "data": {
+          "code": "Code"
+        }
+      }
+    },
+    "error": {
+      "invalid_code": "Unknown, expired or already used code. Get a new one in your Folonia account.",
+      "invalid_url": "Invalid address: it starts with https:// (or http:// in a lab).",
+      "cannot_connect": "Folonia cannot be reached. Check the Internet connection and try again.",
+      "rate_limited": "Too many attempts. Try again in a few minutes."
+    },
+    "abort": {
+      "single_instance_allowed": "This home is already linked to Folonia.",
+      "reauth_successful": "Your home is linked again."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "What Oscar may read and control",
+        "description": "Tick, one by one, the devices whose state Oscar may tell on the phone, then those he may control (turn on or off, open, close, set, run a scene). Only those you already expose to voice assistants are offered; removing the exposure removes them from Oscar too.\n\n⚠ Presence, locks, alarm, doors and windows tell when your home is empty. By default, Oscar only tells their state after the voice lock code; untick “Code to read sensitive devices” to let him tell it to anyone calling from your number.\n\n🔒 Unlocking, disarming the alarm and opening the gate or the garage door always require a four to eight digit code, spoken on the phone and checked here: Folonia never knows it. Locking, arming, closing and stopping do not. Current code: {lock_state}. Leave the field empty to keep it. Five wrong codes in twenty-four hours, when reading or controlling, block the code; turning “Oscar access” off then on unblocks.\n\nEvery read and every command is written to the logbook. The “Oscar access” switch cuts everything.",
+        "data": {
+          "read": "Devices Oscar may read",
+          "control": "Devices Oscar may control",
+          "lock_code": "Voice lock code (4 to 8 digits)",
+          "lock_read": "Code to read sensitive devices"
+        },
+        "data_description": {
+          "lock_read": "Ticked: presence, locks, alarm, doors and windows are only read after the voice lock code."
+        }
+      }
+    },
+    "abort": {
+      "nothing_exposed": "No entity is exposed to voice assistants. First expose those you want to be able to show (Settings, Voice assistants, Expose), then come back."
+    },
+    "error": {
+      "invalid_lock_code": "The code is four to eight digits.",
+      "lock_code_required": "Choose a voice lock code: a lock, the alarm, a gate or a garage door is ticked for control, or a sensitive device is shared while “Code to read sensitive devices” is ticked."
+    }
+  },
+  "entity": {
+    "switch": {
+      "access": {
+        "name": "Oscar access"
+      }
+    },
+    "binary_sensor": {
+      "link": {
+        "name": "Link"
+      }
+    }
+  },
+  "issues": {
+    "protocol": {
+      "title": "Update the Folonia integration",
+      "description": "The Folonia service no longer speaks this integration's protocol version. Update it from HACS, then restart Home Assistant."
+    }
+  }
+}
