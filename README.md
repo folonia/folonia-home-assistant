@@ -32,6 +32,15 @@ transmis avec la demande, puis oublié.
 
 ## Les réglages
 
+**Paramètres**, **Appareils et services**, **Folonia**, **Configurer** ouvre un menu en quatre
+parties, avec un résumé (appareils lus, commandés, sans code ; secret réglé ou non) :
+**Ce qu’Oscar peut lire**, **Ce qu’Oscar peut commander**, **Appareils sans code**, **Code et
+protections**. Chaque partie s’enregistre seule et garde les autres réglages. Les appareils se
+choisissent dans le sélecteur de Home Assistant, avec recherche ; les appareils sous protection
+sont rappelés, avec leur valeur du moment (⚠), dans la description de l’étape. Une liste qui
+demande un secret alors qu’aucun n’est réglé est enregistrée, puis **Code et protections**
+s’ouvre : d’ici là, Oscar refuse ce qui demande un code.
+
 Chaque protection est **cochée par défaut, expliquée, et se décoche** : nous proposons ce qu’il
 faut pour la sécurité, mais si vous préférez faire autrement, c’est votre choix, sous votre
 responsabilité.
@@ -40,7 +49,7 @@ responsabilité.
 | --- | --- | --- |
 | **Code pour déverrouiller, désarmer, ouvrir** | coché | Déverrouiller une serrure, désarmer l’alarme, ouvrir le portail ou la porte de garage demandent le code ou le mot de passe. Décoché, quiconque appelle depuis votre numéro peut le demander à Oscar. |
 | **Code pour lire les appareils sensibles** | coché | La présence, une serrure, l’alarme, une porte ou une fenêtre (marquées d’un ⚠) disent quand votre maison est vide : Oscar n’en dit l’état qu’après le code ou le mot de passe. |
-| **Appareils sans code** | aucun | Parmi les appareils partagés, ceux qu’Oscar lit et commande sans code, même cases cochées. Par exemple la porte du garage, pour demander « J’ai bien fermé le garage ? » sans code. |
+| **Appareils sans code** | aucun | Parmi les appareils partagés sous protection, ceux qu’Oscar lit et commande sans code, même cases cochées. Par exemple la porte du garage, pour demander « J’ai bien fermé le garage ? » sans code. |
 | **Code chiffré**, **Mot de passe parlé** | aucun | Les secrets, l’un ou l’autre. Laissez le champ vide pour garder ce qui est réglé ; une case efface chacun. |
 
 - Verrouiller, armer, fermer et arrêter ne demandent jamais de code.
@@ -58,8 +67,8 @@ responsabilité.
   aucun port ouvert, aucune redirection de routeur.
 - **Aucun jeton de Home Assistant ne sort.** La liaison est appariée une fois par un code de
   huit caractères, et ne permet que les questions et commandes prévues.
-- **Par défaut, Oscar ne voit rien.** Vous cochez un appareil à la fois, parmi ceux déjà exposés
-  aux assistants vocaux. La règle est appliquée chez vous, à chaque demande.
+- **Par défaut, Oscar ne voit rien.** Vous choisissez un appareil à la fois, parmi ceux déjà
+  exposés aux assistants vocaux. La règle est appliquée chez vous, à chaque demande.
 - **Tout est au journal de bord.** Chaque lecture, chaque commande, chaque code refusé, jamais
   le code ni le mot de passe lui-même.
 - **Un interrupteur coupe tout.** « Accès d’Oscar » éteint : la liaison est fermée, rien ne
@@ -90,9 +99,9 @@ Il faut un abonnement Folonia, Home Assistant 2025.2 ou plus récent, et
 
 1. Exposez les appareils voulus aux assistants vocaux : **Paramètres**, **Assistants vocaux**,
    onglet **Exposer**.
-2. **Paramètres**, **Appareils et services**, **Folonia**, **Configurer** : cochez ce qu’Oscar
-   peut lire, puis ce qu’il peut commander, réglez les protections, et choisissez un code, un mot
-   de passe, ou les deux.
+2. **Paramètres**, **Appareils et services**, **Folonia**, **Configurer** : choisissez ce
+   qu’Oscar peut lire, puis ce qu’il peut commander ; dans **Code et protections**, choisissez un
+   code, un mot de passe, ou les deux.
 
 Pourquoi deux étapes ? Home Assistant expose d’office certains appareils nouveaux ; sans le
 choix propre à Folonia, Oscar en verrait plus que vous ne l’avez décidé. Retirer l’exposition
@@ -122,7 +131,7 @@ abonnement et les appels d’essai n’ont pas accès à votre maison.
 
 - **« Code inconnu, expiré ou déjà utilisé »** : demandez un nouveau code dans votre espace.
 - **« Folonia est injoignable »** : vérifiez l’accès à Internet de Home Assistant.
-- **Rien à cocher** : aucun appareil n’est exposé aux assistants vocaux.
+- **Rien à choisir** : aucun appareil n’est exposé aux assistants vocaux.
 - **Liaison hors ligne** : elle se refait seule, avec un délai croissant (cinq minutes au plus).
 - **Nouveau code demandé** : la maison a été déliée ; saisissez un nouveau code.
 - **« Mettre à jour l’intégration Folonia »** : mettez-la à jour depuis HACS.

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 DOMAIN = "folonia"
-VERSION = "0.4.0"
+VERSION = "0.4.1"
 
 #: Le service Folonia ; modifiable en mode avancé (laboratoire).
 DEFAULT_URL = "https://folonia.fr"
