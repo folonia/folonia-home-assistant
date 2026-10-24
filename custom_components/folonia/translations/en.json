@@ -30,6 +30,11 @@
     }
   },
   "options": {
+    "step": {
+      "init": {
+        "title": "Folonia"
+      }
+    },
     "abort": {
       "use_panel": "Folonia settings are in the **Folonia** page of the sidebar (administrators only): shared devices, code and protections, logbook.\n\n[Open the Folonia page]({url})"
     }

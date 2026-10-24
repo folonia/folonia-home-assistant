@@ -38,6 +38,7 @@ def test_memes_cles_et_memes_reperes() -> None:
 def test_les_options_renvoient_a_la_page() -> None:
     for name in FILES:
         options = _load(name)["options"]
-        assert set(options) == {"abort"}
+        # hassfest exige `options.step` ; le formulaire n'en montre aucune, il renvoie à la page.
+        assert set(options) == {"step", "abort"}
         assert set(options["abort"]) == {"use_panel"}
         assert "({url})" in options["abort"]["use_panel"]

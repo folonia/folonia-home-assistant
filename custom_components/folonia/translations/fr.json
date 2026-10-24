@@ -30,6 +30,11 @@
     }
   },
   "options": {
+    "step": {
+      "init": {
+        "title": "Folonia"
+      }
+    },
     "abort": {
       "use_panel": "Les réglages de Folonia sont dans la page **Folonia** de la barre latérale (administrateurs seulement) : appareils partagés, code et protections, journal.\n\n[Ouvrir la page Folonia]({url})"
     }
