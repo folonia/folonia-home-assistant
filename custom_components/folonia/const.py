@@ -3,7 +3,12 @@
 from __future__ import annotations
 
 DOMAIN = "folonia"
-VERSION = "0.4.1"
+VERSION = "0.5.0"
+
+#: La page Folonia de la barre latérale : adresse, titre, icône.
+PANEL_URL = "folonia"
+PANEL_TITLE = "Folonia"
+PANEL_ICON = "mdi:home-account"
 
 #: Le service Folonia ; modifiable en mode avancé (laboratoire).
 DEFAULT_URL = "https://folonia.fr"
@@ -18,16 +23,11 @@ CONF_READ = "read"
 #: Entités qu'Oscar peut commander ; elles sont aussi lisibles.
 CONF_CONTROL = "control"
 #: Deux secrets possibles pour le verrou vocal, l'un ou l'autre suffit : un code chiffré et un
-#: mot de passe parlé, saisis dans les options ; seules leurs empreintes sont gardées.
-CONF_LOCK_CODE = "lock_code"
+#: mot de passe parlé, saisis dans la page Folonia ; seules leurs empreintes sont gardées.
 CONF_LOCK_HASH = "lock_hash"
 CONF_LOCK_SALT = "lock_salt"
-CONF_LOCK_PHRASE = "lock_phrase"
 CONF_PHRASE_HASH = "phrase_hash"
 CONF_PHRASE_SALT = "phrase_salt"
-#: Cases du formulaire qui effacent l'un ou l'autre secret ; elles ne sont pas gardées.
-CONF_CLEAR_CODE = "clear_lock_code"
-CONF_CLEAR_PHRASE = "clear_lock_phrase"
 #: Code aussi pour lire les appareils sensibles : coché par défaut, y compris pour une
 #: installation dont les options n'ont pas la clé ; décochable.
 CONF_LOCK_READ = "lock_read"
@@ -83,7 +83,7 @@ SERVICE_DATA: dict[str, tuple[str, float, float]] = {
     "cover.set_cover_position": ("position", 0, 100),
     "climate.set_temperature": ("temperature", 5, 35),
 }
-#: Domaines qu'Oscar peut commander : ce qui est proposé dans les options.
+#: Domaines qu'Oscar peut commander : ce que la page Folonia propose en commande.
 CONTROL_DOMAINS = frozenset(SERVICES)
 
 #: Ce qui ouvre la maison : serrures, alarme, et les ouvertures qui y donnent accès.

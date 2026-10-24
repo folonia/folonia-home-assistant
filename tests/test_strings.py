@@ -1,12 +1,10 @@
-"""Les chaînes des options : mêmes clés et mêmes repères en anglais et en français."""
+"""Les chaînes : mêmes clés et mêmes repères en anglais et en français."""
 
 from __future__ import annotations
 
 import json
 import re
 from pathlib import Path
-
-from custom_components.folonia.config_flow import MENU
 
 ROOT = Path(__file__).parent.parent / "custom_components" / "folonia"
 FILES = ("strings.json", "translations/en.json", "translations/fr.json")
@@ -37,31 +35,9 @@ def test_memes_cles_et_memes_reperes() -> None:
             ), f"{name} : {key}"
 
 
-def test_le_menu_et_ses_etapes() -> None:
+def test_les_options_renvoient_a_la_page() -> None:
     for name in FILES:
         options = _load(name)["options"]
-        steps = options["step"]
-        assert list(steps["init"]["menu_options"]) == list(MENU)
-        assert set(steps) == {"init", *MENU}
-        assert set(steps["read"]["data"]) == {"read"}
-        assert set(steps["control"]["data"]) == {"control"}
-        assert set(steps["exempt"]["data"]) == {"exempt"}
-        assert set(steps["protections"]["data"]) == {
-            "lock_open",
-            "lock_read",
-            "lock_code",
-            "clear_lock_code",
-            "lock_phrase",
-            "clear_lock_phrase",
-        }
-        assert set(options["abort"]) == {
-            "nothing_exposed",
-            "nothing_controllable",
-            "nothing_to_exempt",
-        }
-        assert set(options["error"]) == {
-            "invalid_lock_code",
-            "invalid_lock_phrase",
-            "lock_code_required",
-            "secret_needed",
-        }
+        assert set(options) == {"abort"}
+        assert set(options["abort"]) == {"use_panel"}
+        assert "({url})" in options["abort"]["use_panel"]

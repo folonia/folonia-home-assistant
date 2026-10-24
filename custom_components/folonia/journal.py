@@ -3,7 +3,7 @@
 Chaque lecture devient une ligne du journal de bord de Home Assistant, rattachée à
 l'entité, avec la valeur lue. Rien ne remonte chez Folonia : le journal reste dans la
 maison, sous le contrôle de l'utilisateur. Les dernières lignes sont aussi gardées en
-mémoire pour le diagnostic de l'intégration.
+mémoire, pour la page Folonia et le diagnostic de l'intégration ; un refus y est marqué.
 """
 
 from __future__ import annotations
@@ -26,9 +26,14 @@ class Journal:
         self.entries: deque[dict[str, Any]] = deque(maxlen=JOURNAL_SIZE)
 
     @callback
-    def record(self, message: str, entity_id: str | None = None) -> None:
+    def record(self, message: str, entity_id: str | None = None, *, refused: bool = False) -> None:
         self.entries.append(
-            {"time": dt_util.utcnow().isoformat(), "message": message, "entity_id": entity_id}
+            {
+                "time": dt_util.utcnow().isoformat(),
+                "message": message,
+                "entity_id": entity_id,
+                "refused": refused,
+            }
         )
         data: dict[str, Any] = {"name": "Oscar", "message": message, "domain": DOMAIN}
         if entity_id:

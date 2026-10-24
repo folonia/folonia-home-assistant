@@ -36,3 +36,5 @@ jobs:
       - run: .venv/bin/ruff check .
       - run: .venv/bin/ruff format --check .
       - run: .venv/bin/python -m pytest -q
+      # La page Folonia : un seul module JavaScript, sans compilation ; sa syntaxe, au moins.
+      - run: node --check custom_components/folonia/frontend/folonia-panel.js

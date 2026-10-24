@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Link your home to Oscar",
-        "description": "In your Folonia account (Account, Home), get an eight-character code, valid for ten minutes, and enter it here.\n\nYour home connects to Folonia: no port is opened on your network, and Folonia never receives a Home Assistant token. By default, Oscar sees nothing: you will choose, in the options, what he may read.",
+        "description": "In your Folonia account (Account, Home), get an eight-character code, valid for ten minutes, and enter it here.\n\nYour home connects to Folonia: no port is opened on your network, and Folonia never receives a Home Assistant token. By default, Oscar sees nothing: you will then choose, in the Folonia page of the sidebar, what he may read.",
         "data": {
           "code": "Code",
           "url": "Service address",
@@ -30,67 +30,8 @@
     }
   },
   "options": {
-    "step": {
-      "init": {
-        "title": "Folonia settings",
-        "description": "Shared with Oscar: {read} devices to read, {control} to control, {exempt} without code. Numeric code: {lock_state}; spoken password: {phrase_state}.\n\nEach part is saved on its own; the other settings are kept.",
-        "menu_options": {
-          "read": "What Oscar may read",
-          "control": "What Oscar may control",
-          "exempt": "Devices without code",
-          "protections": "Code and protections"
-        }
-      },
-      "read": {
-        "title": "What Oscar may read",
-        "description": "The devices whose state Oscar may tell on the phone. Type to search. Only those you already expose to voice assistants are offered; removing the exposure removes them from Oscar too.\n\n⚠ Sensitive: they tell when your home is empty. Oscar only reads them after your code or your password while the protection is ticked (“Code and protections”).\n\n{sensitive}",
-        "data": {
-          "read": "Devices Oscar may read"
-        }
-      },
-      "control": {
-        "title": "What Oscar may control",
-        "description": "The devices Oscar may control: turn on or off, open, close, set, run a scene. They are read too. Type to search.\n\n⚠ Those that open your home: Oscar only unlocks, disarms and opens after your code or your password while the protection is ticked. Locking, arming, closing and stopping never require a code.\n\n{opens}",
-        "data": {
-          "control": "Devices Oscar may control"
-        }
-      },
-      "exempt": {
-        "title": "Devices without code",
-        "description": "Among shared devices under protection, those Oscar reads and controls without code, even with the boxes ticked. For example, the garage door, to ask “Did I close the garage?” without a code. Your choice, your responsibility.",
-        "data": {
-          "exempt": "Devices without code"
-        }
-      },
-      "protections": {
-        "title": "Code and protections",
-        "description": "🔒 By default, Oscar asks for your code or your password before unlocking, disarming the alarm, opening the gate or the garage door, and before telling the state of presence, locks, alarm, doors and windows (marked ⚠), which tell when your home is empty. Each protection can be unticked, and devices can be exempted (“Devices without code”): your choice, your responsibility. Locking, arming, closing and stopping never require a code.\n\nTwo secrets, either one is enough: a four to eight digit code, spoken aloud or typed on the phone keypad, and a spoken password (a word or a short phrase). They are checked here: Folonia does not know them, only their fingerprint is kept. Current code: {lock_state}; current password: {phrase_state}. Leave a field empty to keep what is set. Five wrong attempts in twenty-four hours, code and password together, block the lock; turning “Oscar access” off then on unblocks.\n\nEvery read and every command is written to the logbook. The “Oscar access” switch cuts everything.",
-        "data": {
-          "lock_open": "Code to unlock, disarm, open",
-          "lock_read": "Code to read sensitive devices",
-          "lock_code": "Numeric code (4 to 8 digits)",
-          "clear_lock_code": "Erase the numeric code",
-          "lock_phrase": "Spoken password",
-          "clear_lock_phrase": "Erase the password"
-        },
-        "data_description": {
-          "lock_open": "Ticked (recommended): locks, alarm, gate and garage door only open with your code or your password. Unticked, anyone calling from your number can ask Oscar to unlock, disarm or open.",
-          "lock_read": "Ticked (recommended): presence, locks, alarm, doors and windows are only read after your code or your password. Unticked, Oscar tells their state to anyone calling from your number.",
-          "lock_code": "Spoken aloud, or typed on the phone keypad when you are not alone.",
-          "lock_phrase": "A word or a short phrase, spoken aloud, for example “red dragon”. Capitals, accents and punctuation do not matter. At least four letters; six letters or two words are recommended."
-        }
-      }
-    },
     "abort": {
-      "nothing_exposed": "No entity is exposed to voice assistants. First expose those you want to be able to show (Settings, Voice assistants, Expose), then come back.",
-      "nothing_controllable": "No device exposed to voice assistants can be controlled by Oscar (light, switch, cover, heating, lock, alarm, scene…). First expose one, then come back.",
-      "nothing_to_exempt": "No shared device is under protection: nothing to leave without code. First share, to read or to control, a lock, the alarm, a door, a window or a presence sensor."
-    },
-    "error": {
-      "invalid_lock_code": "The code is four to eight digits.",
-      "invalid_lock_phrase": "The password has at least four letters or digits, and sixty-four characters at most.",
-      "lock_code_required": "Choose a code or a password: a ticked protection applies to a shared device (lock, alarm, gate, garage door, presence, door or window). Otherwise, untick it, or exempt the device in “Devices without code”.",
-      "secret_needed": "Your list is saved, but a shared device is under protection and no secret is set: until then, Oscar refuses what requires a code. Choose a code or a password here, or untick the protection; to leave the device without code, close and go to “Devices without code”."
+      "use_panel": "Folonia settings are in the **Folonia** page of the sidebar (administrators only): shared devices, code and protections, logbook.\n\n[Open the Folonia page]({url})"
     }
   },
   "entity": {

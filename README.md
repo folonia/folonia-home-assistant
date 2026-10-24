@@ -18,7 +18,7 @@ votre abonnement [Folonia](https://folonia.fr) : Oscar lit et commande les seuls
 ## Le code ou le mot de passe
 
 Folonia, c’est d’abord le mains libres : le secret se dit à voix haute. Deux secrets possibles,
-choisis dans les options de l’intégration ; l’un ou l’autre suffit :
+choisis dans la page Folonia (**Code et protections**) ; l’un ou l’autre suffit :
 
 - un **code chiffré** de quatre à huit chiffres, dit à voix haute ou **tapé sur le clavier du
   téléphone** (puis dièse) si vous n’êtes pas seul ;
@@ -30,16 +30,29 @@ Ils sont vérifiés **chez vous** : seule leur empreinte est gardée dans Home A
 règle et s’efface séparément. Folonia ne les enregistre pas : ce que vous dites ou tapez est
 transmis avec la demande, puis oublié.
 
-## Les réglages
+## La page Folonia
 
-**Paramètres**, **Appareils et services**, **Folonia**, **Configurer** ouvre un menu en quatre
-parties, avec un résumé (appareils lus, commandés, sans code ; secret réglé ou non) :
-**Ce qu’Oscar peut lire**, **Ce qu’Oscar peut commander**, **Appareils sans code**, **Code et
-protections**. Chaque partie s’enregistre seule et garde les autres réglages. Les appareils se
-choisissent dans le sélecteur de Home Assistant, avec recherche ; les appareils sous protection
-sont rappelés, avec leur valeur du moment (⚠), dans la description de l’étape. Une liste qui
-demande un secret alors qu’aucun n’est réglé est enregistrée, puis **Code et protections**
-s’ouvre : d’ici là, Oscar refuse ce qui demande un code.
+Tout se règle dans la page **Folonia** de la barre latérale de Home Assistant, réservée aux
+administrateurs. Pour l’ouvrir : **Folonia** dans la barre latérale, ou **Paramètres**,
+**Appareils et services**, **Folonia**, **Configurer**, ou l’adresse `/folonia` de votre Home
+Assistant. Elle suit le thème clair ou sombre de Home Assistant et se lit sur téléphone.
+
+- **Appareils** : l’interrupteur **Accès d’Oscar**, un résumé (appareils partagés, commandés,
+  sans code), puis la liste des appareils exposés aux assistants vocaux, avec recherche (nom,
+  pièce, type), filtres (Tous, Partagés, Sensibles, Sans code), pièce et tri. Pour chacun : sa
+  pièce, son type et son état du moment, ⚠ s’il est sensible, et trois interrupteurs, **Lire**,
+  **Commander** (qui coche Lire) et **Sans code** (pour un appareil partagé qui est sensible ou
+  qui ouvre la maison).
+- **Code et protections** : le code chiffré et le mot de passe parlé (réglé ou non ; un champ
+  vide garde ce qui est réglé, **Effacer** l’efface), les deux protections, et l’état du verrou
+  vocal (bloqué ou non, essais faux récents).
+- **Journal** : ce qu’Oscar a lu et fait depuis le démarrage de Home Assistant, les plus récents
+  d’abord, les refus en couleur. Tout est aussi au journal de bord de Home Assistant.
+
+Rien n’est enregistré avant **Enregistrer** : la barre du bas compte les changements, **Annuler**
+revient en arrière. Des choix qui demandent un secret alors qu’aucun n’est réglé sont
+enregistrés quand même, et la page le dit : d’ici là, Oscar refuse ce qui demande un code.
+Tout ce que la page envoie est vérifié par l’intégration, qui l’applique sans redémarrage.
 
 Chaque protection est **cochée par défaut, expliquée, et se décoche** : nous proposons ce qu’il
 faut pour la sécurité, mais si vous préférez faire autrement, c’est votre choix, sous votre
@@ -50,16 +63,17 @@ responsabilité.
 | **Code pour déverrouiller, désarmer, ouvrir** | coché | Déverrouiller une serrure, désarmer l’alarme, ouvrir le portail ou la porte de garage demandent le code ou le mot de passe. Décoché, quiconque appelle depuis votre numéro peut le demander à Oscar. |
 | **Code pour lire les appareils sensibles** | coché | La présence, une serrure, l’alarme, une porte ou une fenêtre (marquées d’un ⚠) disent quand votre maison est vide : Oscar n’en dit l’état qu’après le code ou le mot de passe. |
 | **Appareils sans code** | aucun | Parmi les appareils partagés sous protection, ceux qu’Oscar lit et commande sans code, même cases cochées. Par exemple la porte du garage, pour demander « J’ai bien fermé le garage ? » sans code. |
-| **Code chiffré**, **Mot de passe parlé** | aucun | Les secrets, l’un ou l’autre. Laissez le champ vide pour garder ce qui est réglé ; une case efface chacun. |
+| **Code chiffré**, **Mot de passe parlé** | aucun | Les secrets, l’un ou l’autre. Laissez le champ vide pour garder ce qui est réglé ; **Effacer** efface chacun. |
 
 - Verrouiller, armer, fermer et arrêter ne demandent jamais de code.
 - Un secret n’est exigé que si une protection cochée porte sur un appareil partagé et non
-  exempté ; sinon, rien n’est imposé.
+  exempté ; sinon, rien n’est imposé. Effacer le dernier secret alors qu’il protège encore un
+  appareil partagé est refusé.
 - Cinq essais faux en vingt-quatre heures, code et mot de passe ensemble, dits ou tapés, en
   lecture comme en commande, bloquent le verrou ; Home Assistant vous prévient. Éteignez puis
   rallumez « Accès d’Oscar », ou enregistrez un nouveau secret, pour débloquer.
 - Une installation plus ancienne garde son code et ses choix ; les nouveaux réglages y prennent
-  leur valeur par défaut.
+  leur valeur par défaut. Depuis la version 0.5.0, **Configurer** mène à la page Folonia.
 
 ## Vos garanties
 
@@ -99,9 +113,9 @@ Il faut un abonnement Folonia, Home Assistant 2025.2 ou plus récent, et
 
 1. Exposez les appareils voulus aux assistants vocaux : **Paramètres**, **Assistants vocaux**,
    onglet **Exposer**.
-2. **Paramètres**, **Appareils et services**, **Folonia**, **Configurer** : choisissez ce
-   qu’Oscar peut lire, puis ce qu’il peut commander ; dans **Code et protections**, choisissez un
-   code, un mot de passe, ou les deux.
+2. Dans la page **Folonia** de la barre latérale, onglet **Appareils** : cochez ce qu’Oscar
+   peut lire, puis ce qu’il peut commander, et **Enregistrer** ; onglet **Code et protections** :
+   choisissez un code, un mot de passe, ou les deux.
 
 Pourquoi deux étapes ? Home Assistant expose d’office certains appareils nouveaux ; sans le
 choix propre à Folonia, Oscar en verrait plus que vous ne l’avez décidé. Retirer l’exposition
@@ -131,7 +145,10 @@ abonnement et les appels d’essai n’ont pas accès à votre maison.
 
 - **« Code inconnu, expiré ou déjà utilisé »** : demandez un nouveau code dans votre espace.
 - **« Folonia est injoignable »** : vérifiez l’accès à Internet de Home Assistant.
-- **Rien à choisir** : aucun appareil n’est exposé aux assistants vocaux.
+- **Rien à choisir** : aucun appareil n’est exposé aux assistants vocaux ; la page mène à
+  l’écran d’exposition de Home Assistant.
+- **Pas de page Folonia dans la barre latérale** : elle n’apparaît qu’aux administrateurs, et
+  tant que l’intégration est chargée.
 - **Liaison hors ligne** : elle se refait seule, avec un délai croissant (cinq minutes au plus).
 - **Nouveau code demandé** : la maison a été déliée ; saisissez un nouveau code.
 - **« Mettre à jour l’intégration Folonia »** : mettez-la à jour depuis HACS.
@@ -152,8 +169,11 @@ clavier, non : il ne passe que par Folonia, sans être enregistré.
 
 ## Développement
 
-Protocole de la liaison : `custom_components/folonia/protocol.py`. Tests contre le cœur de Home
-Assistant, avec un faux service Folonia :
+Protocole de la liaison : `custom_components/folonia/protocol.py`. La page Folonia : un seul
+module JavaScript, sans compilation ni dépendance, `custom_components/folonia/frontend/`, et ses
+commandes WebSocket (`folonia/settings`, `folonia/save`, `folonia/secret`, `folonia/journal`,
+réservées aux administrateurs) dans `websocket.py`. Tests contre le cœur de Home Assistant, avec
+un faux service Folonia :
 
 ```sh
 uv venv --python 3.13 .venv
@@ -180,6 +200,10 @@ presence, locks, alarm, doors and windows require a secret checked locally: a fo
 digit code, spoken or typed on the phone keypad, or a spoken password (a word or a short
 phrase), either one. Each protection can be unticked and devices can be exempted: your choice,
 your responsibility. Five wrong attempts in twenty-four hours block the lock. Every read and
-command goes to the logbook; the “Oscar access” switch cuts everything. Install with HACS (custom repository for now, category Integration),
-then add the Folonia integration with the eight-character code from your Folonia account.
-Licensed under Apache 2.0.
+command goes to the logbook; the “Oscar access” switch cuts everything. Install with HACS
+(custom repository for now, category Integration), then add the Folonia integration with the
+eight-character code from your Folonia account. Settings live in the **Folonia** page of the
+Home Assistant sidebar (administrators only; also reached through **Configure** on the
+integration, or `/folonia`): shared devices with search and filters, code and protections, and
+the integration’s log. Changes are kept until **Save** and checked by the integration. The page
+is in French. Licensed under Apache 2.0.

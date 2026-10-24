@@ -2,7 +2,7 @@
 
 Une entité n'est visible que si elle est **à la fois** exposée aux assistants vocaux
 (Paramètres → Assistants vocaux → Exposer, le mécanisme de Home Assistant) **et**
-cochée dans les options de l'intégration. Home Assistant expose d'office certaines
+cochée dans la page Folonia. Home Assistant expose d'office certaines
 entités nouvelles à Assist : sans la seconde condition, « par défaut, rien » ne
 tiendrait pas.
 """
@@ -225,6 +225,8 @@ KIND_LABELS: dict[str, str] = {
     "device_tracker": "présence",
     "media_player": "lecteur",
     "fan": "ventilateur",
+    "humidifier": "humidificateur",
+    "water_heater": "chauffe-eau",
     "vacuum": "aspirateur",
     "scene": "scène",
     "script": "script",

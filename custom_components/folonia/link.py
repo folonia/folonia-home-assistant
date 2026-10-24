@@ -74,7 +74,7 @@ class FoloniaLink:
         self.hass = hass
         self.entry = entry
         self.journal = Journal(hass)
-        #: Le verrou vocal, d'après les options ; rechargé quand elles changent.
+        #: Le verrou vocal, d'après les options ; rechargé quand elles changent (page Folonia).
         self.lock = voice_lock(entry.options)
         #: L'interrupteur « Accès d'Oscar ».
         self.enabled = True
@@ -195,7 +195,9 @@ class FoloniaLink:
         self._task = None
         self._set_connected(False)
         if reason == "unlinked":
-            self.journal.record("liaison déliée par Folonia : un nouveau code est nécessaire")
+            self.journal.record(
+                "liaison déliée par Folonia : un nouveau code est nécessaire", refused=True
+            )
             self.entry.async_start_reauth(self.hass)
         else:
             ir.async_create_issue(
@@ -309,7 +311,7 @@ class FoloniaLink:
         verdict = self.lock.check(code)
         if verdict in ("code_invalid", "locked") and code:
             await self._save()
-            self.journal.record("code du verrou vocal refusé", entity_id)
+            self.journal.record("code du verrou vocal refusé", entity_id, refused=True)
         if verdict == "locked" and code:
             await self._notify_locked()
         return verdict
@@ -318,7 +320,9 @@ class FoloniaLink:
         """Une commande : entité cochée en commande, service permis, verrou si elle ouvre."""
         entity_id = request.entity_id
         if entity_id not in exposure.allowed_control(self.hass, self.entry.options):
-            self.journal.record("a tenté une commande sur un appareil non commandable", entity_id)
+            self.journal.record(
+                "a tenté une commande sur un appareil non commandable", entity_id, refused=True
+            )
             return protocol.error(request.id, "forbidden")
         state = self.hass.states.get(entity_id)
         domain, service = request.service.split(".", 1)
@@ -343,7 +347,7 @@ class FoloniaLink:
                 await self.hass.services.async_call(domain, service, data, blocking=True)
         except Exception as err:  # tout refus de Home Assistant est un échec, dit à Oscar
             _LOGGER.warning("commande Folonia refusée par Home Assistant : %s", err)
-            self.journal.record(f"commande refusée : {service}", entity_id)
+            self.journal.record(f"commande refusée : {service}", entity_id, refused=True)
             return protocol.error(request.id, "failed")
         after = self.hass.states.get(entity_id)
         self.journal.record(
@@ -357,7 +361,9 @@ class FoloniaLink:
 
     async def _notify_locked(self) -> None:
         """Verrou bloqué : l'utilisateur en est averti dans Home Assistant."""
-        self.journal.record("verrou vocal bloqué après cinq codes faux en vingt-quatre heures")
+        self.journal.record(
+            "verrou vocal bloqué après cinq codes faux en vingt-quatre heures", refused=True
+        )
         try:
             persistent_notification.async_create(
                 self.hass,
@@ -367,7 +373,7 @@ class FoloniaLink:
                     "déverrouiller, ni désarmer, ni ouvrir le portail ou la porte de garage, ni "
                     "dire l'état des appareils sensibles. Pour débloquer : éteignez puis "
                     "rallumez « Accès d'Oscar », ou enregistrez un nouveau code ou mot de passe "
-                    "dans les options de l'intégration."
+                    "dans la page Folonia de la barre latérale (Code et protections)."
                 ),
                 title="Folonia : verrou vocal bloqué",
                 notification_id=f"{DOMAIN}_lock",
