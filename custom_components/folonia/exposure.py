@@ -21,9 +21,12 @@ from homeassistant.helpers import entity_registry as er
 from .const import (
     ASSISTANT,
     CONF_CONTROL,
+    CONF_EXEMPT,
+    CONF_LOCK_OPEN,
     CONF_LOCK_READ,
     CONF_READ,
     CONTROL_DOMAINS,
+    DEFAULT_LOCK_OPEN,
     DEFAULT_LOCK_READ,
     DOMAIN,
     LOCKED_COVER_CLASSES,
@@ -104,9 +107,10 @@ def opens_home(state: State) -> bool:
 
 @callback
 def needs_code(state: State, service: str, data: Mapping[str, Any]) -> bool:
-    """Sous verrou vocal d'office : déverrouiller, désarmer, ouvrir une porte ou un portail.
+    """Ce qui ouvre la maison : déverrouiller, désarmer, ouvrir une porte ou un portail.
 
-    Verrouiller, armer, fermer, arrêter : sans code. `service` est `domaine.service`.
+    Verrouiller, armer, fermer, arrêter : sans code. `service` est `domaine.service`. Les
+    réglages (`lock_open`, exemptions) sont appliqués par `command_guarded`.
     """
     if not opens_home(state):
         return False
@@ -124,6 +128,39 @@ def needs_code(state: State, service: str, data: Mapping[str, Any]) -> bool:
 def lock_read(options: Mapping[str, Any]) -> bool:
     """Code vocal à la lecture des appareils sensibles : coché tant que rien ne dit le contraire."""
     return bool(options.get(CONF_LOCK_READ, DEFAULT_LOCK_READ))
+
+
+@callback
+def lock_open(options: Mapping[str, Any]) -> bool:
+    """Code pour déverrouiller, désarmer, ouvrir : coché tant que rien ne dit le contraire."""
+    return bool(options.get(CONF_LOCK_OPEN, DEFAULT_LOCK_OPEN))
+
+
+@callback
+def exempt(options: Mapping[str, Any]) -> frozenset[str]:
+    """Les appareils que l'utilisateur a choisi de laisser sans code, lus et commandés."""
+    chosen = options.get(CONF_EXEMPT, [])
+    if not isinstance(chosen, list):
+        return frozenset()
+    return frozenset(e for e in chosen if isinstance(e, str))
+
+
+@callback
+def read_guarded(state: State, options: Mapping[str, Any]) -> bool:
+    """L'état de cette entité ne sort qu'avec le bon code : sensible, case cochée, non exemptée."""
+    return lock_read(options) and is_sensitive(state) and state.entity_id not in exempt(options)
+
+
+@callback
+def command_guarded(
+    state: State, service: str, data: Mapping[str, Any], options: Mapping[str, Any]
+) -> bool:
+    """Cette commande exige le code : elle ouvre la maison, case cochée, appareil non exempté."""
+    return (
+        lock_open(options)
+        and state.entity_id not in exempt(options)
+        and needs_code(state, service, data)
+    )
 
 
 @callback

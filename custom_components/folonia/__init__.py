@@ -3,10 +3,11 @@
 L'intégration ouvre une liaison sortante vers le service Folonia, appariée une fois par
 un code de l'espace client. Par défaut, Oscar ne voit rien : l'utilisateur choisit, une
 entité à la fois, ce qu'il peut lire et ce qu'il peut commander, parmi celles qu'il
-expose déjà aux assistants vocaux. Déverrouiller, désarmer, ouvrir le portail ou la porte
-de garage exigent un code dit au téléphone, vérifié ici ; par défaut, lire un appareil
-sensible (présence, serrure, alarme, ouverture) l'exige aussi. Chaque lecture et chaque
-commande sont inscrites au journal de bord ; un interrupteur coupe tout.
+expose déjà aux assistants vocaux. Par défaut, déverrouiller, désarmer, ouvrir le portail
+ou la porte de garage, et lire un appareil sensible (présence, serrure, alarme, ouverture),
+exigent un code ou un mot de passe donné au téléphone et vérifié ici ; chaque protection se
+décoche, et des appareils peuvent en être exemptés. Chaque lecture et chaque commande sont
+inscrites au journal de bord ; un interrupteur coupe tout.
 """
 
 from __future__ import annotations

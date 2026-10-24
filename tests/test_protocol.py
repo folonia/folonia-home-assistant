@@ -51,7 +51,7 @@ def test_requetes_bien_formees_seulement() -> None:
         '{"type":"request","id":"2","op":"read","entity_ids":["light.cuisine"]}'
     )
     assert read == protocol.Request("2", "read", ("light.cuisine",))
-    # Le code vocal à la lecture : facultatif, en chiffres seulement.
+    # Le code vocal à la lecture : facultatif.
     coded = protocol.parse_request(
         '{"type":"request","id":"2","op":"read","entity_ids":["lock.entree"],"code":"2468"}'
     )
@@ -71,11 +71,32 @@ def test_requetes_bien_formees_seulement() -> None:
     )
     bad_service = '{"type":"request","id":"5","op":"command","entity_id":"a.b","service":"rm -rf"}'
     assert protocol.parse_request(bad_service) == protocol.Request("5", "invalid")
-    bad_code = (
-        '{"type":"request","id":"6","op":"command","entity_id":"a.b",'
-        '"service":"lock.unlock","code":"abcd"}'
+    # Le secret peut être un mot de passe parlé (0.4.0) ; il est vérifié par le verrou.
+    phrase = protocol.parse_request(
+        '{"type":"request","id":"6","op":"command","entity_id":"lock.entree",'
+        '"service":"lock.unlock","code":"Dragon rouge."}'
     )
-    assert protocol.parse_request(bad_code) == protocol.Request("6", "invalid")
+    assert phrase is not None and phrase.op == "command" and phrase.code == "Dragon rouge."
+    # Rien qui ne puisse être un code ou un mot de passe : trop court, sans lettres, trop long,
+    # caractère de contrôle, autre chose qu'un texte.
+    for code in ("ab", "!!!!", "x" * 129, "drag\u0000on", 2468):
+        bad_code = json.dumps(
+            {
+                "type": "request",
+                "id": "6",
+                "op": "command",
+                "entity_id": "a.b",
+                "service": "lock.unlock",
+                "code": code,
+            }
+        )
+        assert protocol.parse_request(bad_code) == protocol.Request("6", "invalid"), code
+    phrase_read = protocol.parse_request(
+        json.dumps(
+            {"type": "request", "id": "7", "op": "read", "entity_ids": ["a.b"], "code": "Rémi 2"}
+        )
+    )
+    assert phrase_read == protocol.Request("7", "read", ("a.b",), code="Rémi 2")
     assert protocol.parse_request("pas du JSON") is None
     assert protocol.parse_request('{"type":"welcome","protocol":1}') is None
     assert protocol.is_welcome('{"type":"welcome","protocol":1}')

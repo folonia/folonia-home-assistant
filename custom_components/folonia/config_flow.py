@@ -23,23 +23,52 @@ from homeassistant.helpers.selector import (
 from . import exposure
 from .api import PairingFailed, PairingRateLimited, PairingRefused, async_pair
 from .const import (
+    CONF_CLEAR_CODE,
+    CONF_CLEAR_PHRASE,
     CONF_CODE,
     CONF_CONTROL,
+    CONF_EXEMPT,
     CONF_LINK_ID,
     CONF_LOCK_CODE,
     CONF_LOCK_HASH,
+    CONF_LOCK_OPEN,
+    CONF_LOCK_PHRASE,
     CONF_LOCK_READ,
     CONF_LOCK_SALT,
+    CONF_PHRASE_HASH,
+    CONF_PHRASE_SALT,
     CONF_READ,
     CONF_SECRET,
     CONF_URL,
     CONF_VERIFY_SSL,
+    DEFAULT_LOCK_OPEN,
     DEFAULT_LOCK_READ,
     DEFAULT_URL,
     DOMAIN,
 )
 from .protocol import base_url, normalize_code
-from .voicelock import hash_code, normalize_lock_code
+from .voicelock import hash_code, normalize_lock_code, normalize_passphrase
+
+#: Les deux secrets du verrou : champ du formulaire, case qui l'efface, clés de l'empreinte,
+#: normalisation, erreur si la saisie ne peut pas en être un.
+SECRETS = (
+    (
+        CONF_LOCK_CODE,
+        CONF_CLEAR_CODE,
+        CONF_LOCK_HASH,
+        CONF_LOCK_SALT,
+        normalize_lock_code,
+        "invalid_lock_code",
+    ),
+    (
+        CONF_LOCK_PHRASE,
+        CONF_CLEAR_PHRASE,
+        CONF_PHRASE_HASH,
+        CONF_PHRASE_SALT,
+        normalize_passphrase,
+        "invalid_lock_phrase",
+    ),
+)
 
 
 class FoloniaConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -83,7 +112,13 @@ class FoloniaConfigFlow(ConfigFlow, domain=DOMAIN):
                 return self.async_create_entry(
                     title="Folonia",
                     data=data,
-                    options={CONF_READ: [], CONF_CONTROL: [], CONF_LOCK_READ: DEFAULT_LOCK_READ},
+                    options={
+                        CONF_READ: [],
+                        CONF_CONTROL: [],
+                        CONF_LOCK_OPEN: DEFAULT_LOCK_OPEN,
+                        CONF_LOCK_READ: DEFAULT_LOCK_READ,
+                        CONF_EXEMPT: [],
+                    },
                 )
         fields: dict[Any, Any] = {vol.Required(CONF_CODE): str}
         if self.show_advanced_options:
@@ -123,11 +158,32 @@ class FoloniaConfigFlow(ConfigFlow, domain=DOMAIN):
 class FoloniaOptionsFlow(OptionsFlow):
     """Une entité à la fois, parmi celles déjà exposées aux assistants vocaux.
 
-    Deux listes : ce qu'Oscar peut lire, ce qu'il peut commander. Un code du
-    verrou vocal est exigé dès que ce qui ouvre la maison est coché en commande, et, la
-    case « lock_read » cochée (par défaut), dès qu'un appareil sensible est partagé ; seule
-    son empreinte est gardée, et Folonia ne la reçoit jamais.
+    Deux listes : ce qu'Oscar peut lire, ce qu'il peut commander. Deux protections, cochées
+    par défaut et décochables : le code pour ce qui ouvre la maison (`lock_open`), et pour
+    lire un appareil sensible (`lock_read`) ; des appareils peuvent en être exemptés. Deux
+    secrets, l'un ou l'autre suffit : un code chiffré, un mot de passe parlé. Un secret n'est
+    exigé que si une protection cochée porte sur un appareil partagé et non exempté. Seules
+    les empreintes sont gardées, et Folonia ne les reçoit jamais.
     """
+
+    def _guarded(
+        self,
+        read: list[str],
+        control: list[str],
+        exempt: set[str],
+        lock_open: bool,
+        lock_read: bool,
+    ) -> bool:
+        """Une protection cochée porte sur au moins un appareil partagé et non exempté."""
+        for entity_id in dict.fromkeys((*control, *read)):
+            state = self.hass.states.get(entity_id)
+            if state is None or entity_id in exempt:
+                continue
+            if lock_open and entity_id in control and exposure.opens_home(state):
+                return True
+            if lock_read and exposure.is_sensitive(state):
+                return True
+        return False
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
@@ -139,37 +195,37 @@ class FoloniaOptionsFlow(OptionsFlow):
         if user_input is not None:
             read = [e for e in user_input.get(CONF_READ, []) if e in exposed]
             control = [e for e in user_input.get(CONF_CONTROL, []) if e in controllable]
+            shared = {*read, *control}
+            lock_open = bool(user_input.get(CONF_LOCK_OPEN, DEFAULT_LOCK_OPEN))
             lock_read = bool(user_input.get(CONF_LOCK_READ, DEFAULT_LOCK_READ))
+            # Une exemption ne vaut que pour un appareil partagé.
+            exempt = [e for e in user_input.get(CONF_EXEMPT, []) if e in shared]
             options: dict[str, Any] = {
                 CONF_READ: read,
                 CONF_CONTROL: control,
+                CONF_LOCK_OPEN: lock_open,
                 CONF_LOCK_READ: lock_read,
+                CONF_EXEMPT: exempt,
             }
-            code_text = user_input.get(CONF_LOCK_CODE, "")
-            if current.get(CONF_LOCK_HASH):
-                options[CONF_LOCK_HASH] = current[CONF_LOCK_HASH]
-                options[CONF_LOCK_SALT] = current[CONF_LOCK_SALT]
-            if code_text:
-                code = normalize_lock_code(code_text)
-                if code is None:
-                    errors[CONF_LOCK_CODE] = "invalid_lock_code"
+            for field, clear, hash_key, salt_key, normalize, error in SECRETS:
+                if current.get(hash_key) and not user_input.get(clear):
+                    options[hash_key] = current[hash_key]
+                    options[salt_key] = current[salt_key]
+                text = user_input.get(field, "")
+                if not text:
+                    continue
+                secret = normalize(text)
+                if secret is None:
+                    errors[field] = error
                 else:
-                    options[CONF_LOCK_HASH], options[CONF_LOCK_SALT] = hash_code(code)
-            # Le code est exigé pour ce qui ouvre la maison, coché en commande, et, la case
-            # cochée, pour tout appareil sensible partagé (les commandés se lisent aussi).
-            locked = [
-                e
-                for e in control
-                if (state := self.hass.states.get(e)) is not None and exposure.opens_home(state)
-            ]
-            if lock_read:
-                locked += [
-                    e
-                    for e in (*read, *control)
-                    if (state := self.hass.states.get(e)) is not None
-                    and exposure.is_sensitive(state)
-                ]
-            if locked and not options.get(CONF_LOCK_HASH) and CONF_LOCK_CODE not in errors:
+                    options[hash_key], options[salt_key] = hash_code(secret)
+            # Un secret n'est exigé que s'il protège quelque chose ; sinon, rien n'est imposé.
+            has_secret = bool(options.get(CONF_LOCK_HASH) or options.get(CONF_PHRASE_HASH))
+            if (
+                not errors
+                and not has_secret
+                and self._guarded(read, control, set(exempt), lock_open, lock_read)
+            ):
                 errors[CONF_LOCK_CODE] = "lock_code_required"
             if not errors:
                 return self.async_create_entry(data=options)
@@ -181,26 +237,39 @@ class FoloniaOptionsFlow(OptionsFlow):
             key=lambda choice: choice["label"].casefold(),
         )
         control_choices = [c for c in choices if c["value"] in controllable]
+        # Exemptables : ce qui peut être sous code, sensible ou qui ouvre la maison.
+        protectable = {
+            entity_id
+            for entity_id in exposed
+            if (state := self.hass.states.get(entity_id)) is not None
+            and (exposure.is_sensitive(state) or exposure.opens_home(state))
+        }
+        exempt_choices = [c for c in choices if c["value"] in protectable]
         read_now = [e for e in current.get(CONF_READ, []) if e in exposed]
         control_now = [e for e in current.get(CONF_CONTROL, []) if e in controllable]
+        exempt_now = [e for e in exposure.exempt(current) if e in protectable]
+
+        def entities(options: list[SelectOptionDict]) -> SelectSelector:
+            return SelectSelector(
+                SelectSelectorConfig(options=options, multiple=True, mode=SelectSelectorMode.LIST)
+            )
+
+        password = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
         schema = vol.Schema(
             {
-                vol.Optional(CONF_READ, default=read_now): SelectSelector(
-                    SelectSelectorConfig(
-                        options=choices, multiple=True, mode=SelectSelectorMode.LIST
-                    )
-                ),
-                vol.Optional(CONF_CONTROL, default=control_now): SelectSelector(
-                    SelectSelectorConfig(
-                        options=control_choices, multiple=True, mode=SelectSelectorMode.LIST
-                    )
-                ),
-                vol.Optional(CONF_LOCK_CODE, default=""): TextSelector(
-                    TextSelectorConfig(type=TextSelectorType.PASSWORD)
-                ),
+                vol.Optional(CONF_READ, default=read_now): entities(choices),
+                vol.Optional(CONF_CONTROL, default=control_now): entities(control_choices),
                 vol.Optional(
-                    CONF_LOCK_READ, default=bool(current.get(CONF_LOCK_READ, DEFAULT_LOCK_READ))
+                    CONF_LOCK_OPEN, default=exposure.lock_open(current)
                 ): BooleanSelector(),
+                vol.Optional(
+                    CONF_LOCK_READ, default=exposure.lock_read(current)
+                ): BooleanSelector(),
+                vol.Optional(CONF_EXEMPT, default=sorted(exempt_now)): entities(exempt_choices),
+                vol.Optional(CONF_LOCK_CODE, default=""): password,
+                vol.Optional(CONF_CLEAR_CODE, default=False): BooleanSelector(),
+                vol.Optional(CONF_LOCK_PHRASE, default=""): password,
+                vol.Optional(CONF_CLEAR_PHRASE, default=False): BooleanSelector(),
             }
         )
         return self.async_show_form(
@@ -208,6 +277,7 @@ class FoloniaOptionsFlow(OptionsFlow):
             data_schema=schema,
             errors=errors,
             description_placeholders={
-                "lock_state": "réglé" if current.get(CONF_LOCK_HASH) else "aucun"
+                "lock_state": "réglé" if current.get(CONF_LOCK_HASH) else "aucun",
+                "phrase_state": "réglé" if current.get(CONF_PHRASE_HASH) else "aucun",
             },
         )

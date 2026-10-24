@@ -9,9 +9,12 @@ from __future__ import annotations
 import json
 import random
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
+
+from .voicelock import normalize_lock_code, normalize_passphrase
 
 PROTOCOL = 1
 
@@ -123,9 +126,25 @@ def is_welcome(text: str) -> bool:
 
 
 _SERVICE = re.compile(r"^[a-z_]+\.[a-z_]+$")
-_LOCK_CODE = re.compile(r"^[0-9]{4,8}$")
 #: Données d'un service, au plus.
 MAX_DATA_KEYS = 4
+#: Le secret du verrou vocal tel qu'il arrive, au plus : code chiffré ou mot de passe parlé.
+MAX_SECRET = 128
+
+
+def _secret_ok(code: object) -> bool:
+    """Absent, ou un code de quatre à huit chiffres, ou un mot de passe possible.
+
+    Un serveur qui n'envoie que des chiffres passe toujours ; un texte sans lettres ni
+    chiffres, trop court ou trop long, rend la requête mal formée.
+    """
+    if code is None:
+        return True
+    if not isinstance(code, str) or not 0 < len(code) <= MAX_SECRET:
+        return False
+    if any(unicodedata.category(c).startswith("C") for c in code):
+        return False
+    return normalize_lock_code(code) is not None or normalize_passphrase(code) is not None
 
 
 @dataclass(frozen=True)
@@ -157,13 +176,14 @@ def parse_request(text: str) -> Request | None:
         return Request(request_id, "list")
     if op == "read":
         ids = message.get("entity_ids")
-        # Le code vocal, facultatif (21 octobre 2026) : seulement pour les entités sensibles.
+        # Le secret du verrou, facultatif : seulement pour les entités sensibles. Code
+        # chiffré ou mot de passe parlé (0.4.0) ; vérifié par le verrou, jamais ici.
         code = message.get("code")
         if (
             not isinstance(ids, list)
             or not 0 < len(ids) <= MAX_READ
             or not all(isinstance(i, str) and 0 < len(i) <= 255 for i in ids)
-            or (code is not None and not (isinstance(code, str) and _LOCK_CODE.match(code)))
+            or not _secret_ok(code)
         ):
             return Request(request_id, "invalid")
         return Request(request_id, "read", tuple(ids), code=code)
@@ -183,7 +203,7 @@ def parse_request(text: str) -> Request | None:
                 isinstance(k, str) and isinstance(v, (int, float, str)) and not isinstance(v, bool)
                 for k, v in data.items()
             )
-            or (code is not None and not (isinstance(code, str) and _LOCK_CODE.match(code)))
+            or not _secret_ok(code)
         ):
             return Request(request_id, "invalid")
         return Request(request_id, "command", (), entity_id, service, dict(data), code)

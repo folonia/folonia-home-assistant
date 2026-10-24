@@ -12,11 +12,18 @@ from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.setup import async_setup_component
 
 from custom_components.folonia.const import (
+    CONF_CLEAR_CODE,
+    CONF_CLEAR_PHRASE,
     CONF_CODE,
     CONF_CONTROL,
+    CONF_EXEMPT,
     CONF_LOCK_CODE,
     CONF_LOCK_HASH,
+    CONF_LOCK_OPEN,
+    CONF_LOCK_PHRASE,
     CONF_LOCK_READ,
+    CONF_LOCK_SALT,
+    CONF_PHRASE_HASH,
     CONF_READ,
     CONF_SECRET,
     CONF_URL,
@@ -48,13 +55,19 @@ async def test_appariement_par_code(hass: HomeAssistant, folonia: tuple[FakeFolo
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"][CONF_SECRET] == SECRET
     assert result["data"][CONF_URL] == url
-    # Par défaut, rien n'est montré ni commandé.
-    assert result["options"] == {CONF_READ: [], CONF_CONTROL: [], CONF_LOCK_READ: True}
-    assert fake.paired_with == [{"code": "K7QM4XT2", "component": "0.3.0"}]
+    # Par défaut, rien n'est montré ni commandé ; les protections sont cochées.
+    assert result["options"] == {
+        CONF_READ: [],
+        CONF_CONTROL: [],
+        CONF_LOCK_OPEN: True,
+        CONF_LOCK_READ: True,
+        CONF_EXEMPT: [],
+    }
+    assert fake.paired_with == [{"code": "K7QM4XT2", "component": "0.4.0"}]
 
     # La liaison s'ouvre aussitôt, et l'intégration le montre.
     await fake.connected.wait()
-    assert fake.received[0] == {"type": "hello", "protocol": 1, "component": "0.3.0"}
+    assert fake.received[0] == {"type": "hello", "protocol": 1, "component": "0.4.0"}
     entry = hass.config_entries.async_entries(DOMAIN)[0]
     # La liaison tourne en tâche de fond : elle lit le `welcome` un peu après le faux service.
     for _ in range(100):
@@ -132,7 +145,9 @@ async def test_choix_parmi_les_entites_exposees_a_assist(
     assert entry.options == {
         CONF_READ: ["light.cuisine"],
         CONF_CONTROL: [],
+        CONF_LOCK_OPEN: True,
         CONF_LOCK_READ: True,
+        CONF_EXEMPT: [],
     }
 
     # Une serrure partagée en lecture, case cochée (par défaut), exige un code ; décochée, non.
@@ -150,8 +165,8 @@ async def test_choix_parmi_les_entites_exposees_a_assist(
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert entry.options[CONF_LOCK_READ] is False
 
-    # Une serrure cochée en commande exige un code, case décochée ou non ; le code est gardé
-    # en empreinte.
+    # Une serrure cochée en commande exige un code tant que « lock_open » est coché, même
+    # « lock_read » décoché ; le code est gardé en empreinte.
     result = await hass.config_entries.options.async_init(entry.entry_id)
     result = await hass.config_entries.options.async_configure(
         result["flow_id"], {CONF_READ: [], CONF_CONTROL: ["lock.entree"], CONF_LOCK_READ: False}
@@ -180,4 +195,184 @@ async def test_choix_parmi_les_entites_exposees_a_assist(
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert entry.options[CONF_LOCK_HASH] == hashed
     await fake.connected.wait()
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def _options_flow(hass: HomeAssistant, folonia: tuple[FakeFolonia, str], options=None):
+    """Une maison reliée, avec une serrure, la porte du garage, une lumière, un capteur."""
+    fake, url = folonia
+    assert await async_setup_component(hass, "homeassistant", {})
+    hass.states.async_set("light.cuisine", "on", {"friendly_name": "Lumière cuisine"})
+    hass.states.async_set("lock.entree", "locked", {"friendly_name": "Serrure"})
+    hass.states.async_set(
+        "cover.garage", "closed", {"friendly_name": "Porte du garage", "device_class": "garage"}
+    )
+    hass.states.async_set(
+        "sensor.salon", "21", {"friendly_name": "Salon", "unit_of_measurement": "°C"}
+    )
+    for exposed in ("light.cuisine", "lock.entree", "cover.garage", "sensor.salon"):
+        async_expose_entity(hass, "conversation", exposed, True)
+    result = await _start(hass)
+    await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_CODE: "K7QM4XT2", CONF_URL: url, CONF_VERIFY_SSL: True}
+    )
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    if options is not None:
+        hass.config_entries.async_update_entry(entry, options=options)
+    await fake.connected.wait()
+    return entry
+
+
+#: Un formulaire rempli de zéro : rien de partagé, protections cochées, aucune exemption. Un
+#: champ absent prendrait sinon la valeur déjà enregistrée.
+BLANK = {
+    CONF_READ: [],
+    CONF_CONTROL: [],
+    CONF_LOCK_OPEN: True,
+    CONF_LOCK_READ: True,
+    CONF_EXEMPT: [],
+}
+
+
+async def _submit(hass: HomeAssistant, entry, values: dict):
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] is FlowResultType.FORM
+    return await hass.config_entries.options.async_configure(result["flow_id"], {**BLANK, **values})
+
+
+async def test_protections_decochables_sans_secret_exige(
+    hass: HomeAssistant, folonia: tuple[FakeFolonia, str]
+) -> None:
+    entry = await _options_flow(hass, folonia)
+    # « lock_open » décoché : une serrure et le garage en commande, sans aucun secret. On
+    # avertit (description), on ne refuse pas.
+    result = await _submit(
+        hass,
+        entry,
+        {
+            CONF_READ: [],
+            CONF_CONTROL: ["lock.entree", "cover.garage"],
+            CONF_LOCK_OPEN: False,
+            CONF_LOCK_READ: False,
+        },
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options[CONF_LOCK_OPEN] is False
+    assert CONF_LOCK_HASH not in entry.options and CONF_PHRASE_HASH not in entry.options
+
+    # Rien de protégé n'est partagé : ni code ni mot de passe exigé, cases cochées.
+    result = await _submit(hass, entry, {CONF_READ: ["light.cuisine", "sensor.salon"]})
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options[CONF_LOCK_OPEN] is True and entry.options[CONF_LOCK_READ] is True
+
+    # Case cochée et serrure en commande : un secret est exigé.
+    result = await _submit(hass, entry, {CONF_CONTROL: ["lock.entree"], CONF_LOCK_READ: False})
+    assert result["errors"] == {CONF_LOCK_CODE: "lock_code_required"}
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_appareils_sans_code(hass: HomeAssistant, folonia: tuple[FakeFolonia, str]) -> None:
+    entry = await _options_flow(hass, folonia)
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    # Ne sont proposés à l'exemption que les appareils qui peuvent être sous code.
+    exempt = result["data_schema"].schema[CONF_EXEMPT]
+    assert {o["value"] for o in exempt.config["options"]} == {"lock.entree", "cover.garage"}
+
+    # Le garage exempté, en lecture et en commande, cases cochées : aucun secret exigé.
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {
+            CONF_READ: ["cover.garage"],
+            CONF_CONTROL: ["cover.garage"],
+            CONF_EXEMPT: ["cover.garage"],
+        },
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options[CONF_EXEMPT] == ["cover.garage"]
+
+    # Une exemption ne vaut que pour un appareil partagé ; la serrure, non exemptée, exige un
+    # secret.
+    result = await _submit(
+        hass,
+        entry,
+        {CONF_CONTROL: ["lock.entree"], CONF_EXEMPT: ["cover.garage"]},
+    )
+    assert result["errors"] == {CONF_LOCK_CODE: "lock_code_required"}
+    result = await _submit(
+        hass,
+        entry,
+        {CONF_CONTROL: ["lock.entree"], CONF_EXEMPT: ["lock.entree", "cover.garage"]},
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options[CONF_EXEMPT] == ["lock.entree"]
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_mot_de_passe_parle_et_effacement(
+    hass: HomeAssistant, folonia: tuple[FakeFolonia, str]
+) -> None:
+    entry = await _options_flow(hass, folonia)
+    # Trop court pour être un mot de passe : refusé ; quatre lettres suffisent.
+    result = await _submit(hass, entry, {CONF_CONTROL: ["lock.entree"], CONF_LOCK_PHRASE: "Ah !"})
+    assert result["errors"] == {CONF_LOCK_PHRASE: "invalid_lock_phrase"}
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {**BLANK, CONF_CONTROL: ["lock.entree"], CONF_LOCK_PHRASE: "Dragon rouge."},
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert len(entry.options[CONF_PHRASE_HASH]) == 64
+    assert CONF_LOCK_HASH not in entry.options
+    assert CONF_LOCK_PHRASE not in entry.options
+    assert "Dragon" not in str(entry.options) and "dragon" not in str(entry.options)
+    phrase = entry.options[CONF_PHRASE_HASH]
+
+    # Un code chiffré en plus ; le mot de passe est gardé.
+    result = await _submit(hass, entry, {CONF_CONTROL: ["lock.entree"], CONF_LOCK_CODE: "2468"})
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options[CONF_PHRASE_HASH] == phrase
+    assert len(entry.options[CONF_LOCK_HASH]) == 64
+
+    # Effacer le mot de passe garde le code ; effacer les deux, serrure partagée, est refusé.
+    result = await _submit(hass, entry, {CONF_CONTROL: ["lock.entree"], CONF_CLEAR_PHRASE: True})
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert CONF_PHRASE_HASH not in entry.options and CONF_LOCK_HASH in entry.options
+    result = await _submit(hass, entry, {CONF_CONTROL: ["lock.entree"], CONF_CLEAR_CODE: True})
+    assert result["errors"] == {CONF_LOCK_CODE: "lock_code_required"}
+    # Rien de protégé : tout peut être effacé.
+    result = await _submit(hass, entry, {CONF_READ: ["light.cuisine"], CONF_CLEAR_CODE: True})
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert CONF_LOCK_HASH not in entry.options and CONF_LOCK_SALT not in entry.options
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_reglages_d_une_installation_0_3(
+    hass: HomeAssistant, folonia: tuple[FakeFolonia, str]
+) -> None:
+    from custom_components.folonia.voicelock import hash_code
+
+    lock_hash, lock_salt = hash_code("2468")
+    # Les options telles que 0.3.0 les a laissées : ni « lock_open », ni exemptions.
+    entry = await _options_flow(
+        hass,
+        folonia,
+        {
+            CONF_READ: ["light.cuisine"],
+            CONF_CONTROL: ["lock.entree"],
+            CONF_LOCK_READ: False,
+            CONF_LOCK_HASH: lock_hash,
+            CONF_LOCK_SALT: lock_salt,
+        },
+    )
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    defaults = {getattr(key, "schema", key): key.default() for key in result["data_schema"].schema}
+    assert defaults[CONF_LOCK_OPEN] is True
+    assert defaults[CONF_LOCK_READ] is False
+    assert defaults[CONF_EXEMPT] == []
+    assert defaults[CONF_CONTROL] == ["lock.entree"]
+    # Enregistré tel quel : le code chiffré est gardé, les nouvelles clés prennent leur défaut.
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {})
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options[CONF_LOCK_HASH] == lock_hash
+    assert entry.options[CONF_LOCK_OPEN] is True
+    assert entry.options[CONF_EXEMPT] == []
     assert await hass.config_entries.async_unload(entry.entry_id)

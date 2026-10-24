@@ -16,10 +16,14 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.folonia.const import (
     CONF_CONTROL,
+    CONF_EXEMPT,
     CONF_LINK_ID,
     CONF_LOCK_HASH,
+    CONF_LOCK_OPEN,
     CONF_LOCK_READ,
     CONF_LOCK_SALT,
+    CONF_PHRASE_HASH,
+    CONF_PHRASE_SALT,
     CONF_READ,
     CONF_SECRET,
     CONF_URL,
@@ -32,6 +36,7 @@ from .fake_folonia import LINK_ID, FakeFolonia
 from .helpers import entity_id
 
 LOCK_HASH, LOCK_SALT = hash_code("2468")
+PHRASE_HASH, PHRASE_SALT = hash_code("dragon rouge")
 
 # Le faux service Folonia écoute sur la boucle locale : le banc de Home Assistant
 # ferme les sockets par défaut, on les rouvre pour ce seul fichier.
@@ -73,7 +78,9 @@ async def linked(
             CONF_LINK_ID: LINK_ID,
             CONF_SECRET: fake.link_secret(),
         },
-        # La serrure est exposée à Assist mais pas cochée : Oscar ne la voit pas.
+        # La serrure est exposée à Assist mais pas cochée : Oscar ne la voit pas. Les options
+        # sont celles d'une installation 0.3.0 : ni « lock_open » ni exemptions, qui valent
+        # alors leur défaut (protections cochées, aucune exemption).
         options={
             CONF_READ: ["light.cuisine", "cover.garage"],
             CONF_CONTROL: [],
@@ -393,3 +400,134 @@ async def test_retirer_l_integration_delie_la_maison(
     assert await hass.config_entries.async_remove(entry.entry_id)
     await hass.async_block_till_done()
     assert fake.unlinked == [secret]
+
+
+async def _cover_services(hass: HomeAssistant) -> list[str]:
+    calls: list[str] = []
+
+    async def record(call) -> None:
+        calls.append(f"{call.domain}.{call.service}")
+        if call.domain == "lock":
+            after = "unlocked" if call.service == "unlock" else "locked"
+            hass.states.async_set("lock.entree", after, {"friendly_name": "Serrure"})
+
+    for service in ("open_cover", "close_cover"):
+        hass.services.async_register("cover", service, record)
+    for service in ("lock", "unlock"):
+        hass.services.async_register("lock", service, record)
+    return calls
+
+
+async def test_ouvrir_sans_code_case_decochee(
+    hass: HomeAssistant, linked: tuple[FakeFolonia, MockConfigEntry, list[Event]]
+) -> None:
+    fake, entry, _ = linked
+    calls = await _cover_services(hass)
+    hass.config_entries.async_update_entry(
+        entry,
+        options={**entry.options, CONF_CONTROL: ["lock.entree"], CONF_LOCK_OPEN: False},
+    )
+    await hass.async_block_till_done()
+    # Décoché par l'utilisateur : déverrouiller passe sans code. L'état de la serrure,
+    # sensible, reste sous code tant que « lock_read » est coché.
+    done = await fake.request("command", entity_id="lock.entree", service="lock.unlock")
+    assert done == {"type": "response", "id": done["id"], "ok": True}
+    assert calls == ["lock.unlock"]
+    read = await fake.request("read", entity_ids=["lock.entree"])
+    assert read["withheld"] == [{"entity_id": "lock.entree", "reason": "code_required"}]
+    # Un code dit quand même ne gêne pas, et un code faux n'y compte pas.
+    again = await fake.request(
+        "command", entity_id="lock.entree", service="lock.unlock", code="0000"
+    )
+    assert again["ok"] is True
+    assert len(entry.runtime_data.lock.failures) == 0
+
+
+async def test_appareil_exempte_lu_et_ouvert_sans_code(
+    hass: HomeAssistant, linked: tuple[FakeFolonia, MockConfigEntry, list[Event]]
+) -> None:
+    fake, entry, logbook = linked
+    calls = await _cover_services(hass)
+    hass.config_entries.async_update_entry(
+        entry,
+        options={
+            **entry.options,
+            CONF_CONTROL: ["cover.garage", "lock.entree"],
+            CONF_EXEMPT: ["cover.garage"],
+        },
+    )
+    await hass.async_block_till_done()
+    # « J'ai bien fermé le garage ? » sans code, cases cochées.
+    read = await fake.request("read", entity_ids=["cover.garage", "lock.entree"])
+    assert [s["entity_id"] for s in read["states"]] == ["cover.garage"]
+    assert read["states"][0]["state"] == "closed"
+    assert read["withheld"] == [{"entity_id": "lock.entree", "reason": "code_required"}]
+    opened = await fake.request("command", entity_id="cover.garage", service="cover.open_cover")
+    assert opened["ok"] is True and opened["result"]["entity_id"] == "cover.garage"
+    # La serrure, non exemptée, reste sous code.
+    refused = await fake.request("command", entity_id="lock.entree", service="lock.unlock")
+    assert refused["error"] == "code_required"
+    assert calls == ["cover.open_cover"]
+    await hass.async_block_till_done()
+    messages = [(e.data.get("entity_id"), e.data["message"]) for e in logbook]
+    assert ("cover.garage", "a lu l'état : closed") in messages
+
+
+async def test_mot_de_passe_parle_et_essais_faux_comptes_ensemble(
+    hass: HomeAssistant, linked: tuple[FakeFolonia, MockConfigEntry, list[Event]]
+) -> None:
+    fake, entry, logbook = linked
+    calls = await _cover_services(hass)
+    hass.config_entries.async_update_entry(
+        entry,
+        options={
+            **entry.options,
+            CONF_CONTROL: ["lock.entree"],
+            CONF_PHRASE_HASH: PHRASE_HASH,
+            CONF_PHRASE_SALT: PHRASE_SALT,
+        },
+    )
+    await hass.async_block_till_done()
+    # Le mot de passe tel que le modèle le transcrit, ou le code : l'un ou l'autre suffit.
+    read = await fake.request("read", entity_ids=["cover.garage"], code="Dragon. Rouge !")
+    assert read["states"][0]["state"] == "closed" and "withheld" not in read
+    done = await fake.request(
+        "command", entity_id="lock.entree", service="lock.unlock", code="dragon rouge"
+    )
+    assert done["ok"] is True and done["result"]["state"] == "unlocked"
+    done = await fake.request(
+        "command", entity_id="lock.entree", service="lock.unlock", code="2468"
+    )
+    assert done["ok"] is True
+
+    # Codes et mots de passe faux, en lecture comme en commande, comptent ensemble.
+    wrong = await fake.request("read", entity_ids=["cover.garage"], code="dragon bleu")
+    assert wrong["withheld"] == [{"entity_id": "cover.garage", "reason": "code_invalid"}]
+    for code in ("0000", "chat noir", "1111"):
+        wrong = await fake.request(
+            "command", entity_id="lock.entree", service="lock.unlock", code=code
+        )
+        assert wrong["error"] == "code_invalid"
+    wrong = await fake.request(
+        "command", entity_id="lock.entree", service="lock.unlock", code="dragon vert"
+    )
+    assert wrong["error"] == "locked"
+    good = await fake.request(
+        "command", entity_id="lock.entree", service="lock.unlock", code="dragon rouge"
+    )
+    assert good["error"] == "locked"
+    assert calls == ["lock.unlock", "lock.unlock"]
+
+    # Effacer le mot de passe change le verrou : il est débloqué, le code chiffré reste.
+    options = {
+        k: v for k, v in entry.options.items() if k not in (CONF_PHRASE_HASH, CONF_PHRASE_SALT)
+    }
+    hass.config_entries.async_update_entry(entry, options=options)
+    await hass.async_block_till_done()
+    assert not entry.runtime_data.lock.is_locked()
+    gone = await fake.request("read", entity_ids=["cover.garage"], code="dragon rouge")
+    assert gone["withheld"] == [{"entity_id": "cover.garage", "reason": "code_invalid"}]
+    await hass.async_block_till_done()
+    messages = [m for _, m in ((e.data.get("entity_id"), e.data["message"]) for e in logbook)]
+    assert "code ou mot de passe du verrou vocal modifié" in messages
+    assert not any("dragon" in m.lower() or "2468" in m for m in messages)

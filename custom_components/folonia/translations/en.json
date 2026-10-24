@@ -33,15 +33,24 @@
     "step": {
       "init": {
         "title": "What Oscar may read and control",
-        "description": "Tick, one by one, the devices whose state Oscar may tell on the phone, then those he may control (turn on or off, open, close, set, run a scene). Only those you already expose to voice assistants are offered; removing the exposure removes them from Oscar too.\n\n⚠ Presence, locks, alarm, doors and windows tell when your home is empty. By default, Oscar only tells their state after the voice lock code; untick “Code to read sensitive devices” to let him tell it to anyone calling from your number.\n\n🔒 Unlocking, disarming the alarm and opening the gate or the garage door always require a four to eight digit code, spoken on the phone and checked here: Folonia never knows it. Locking, arming, closing and stopping do not. Current code: {lock_state}. Leave the field empty to keep it. Five wrong codes in twenty-four hours, when reading or controlling, block the code; turning “Oscar access” off then on unblocks.\n\nEvery read and every command is written to the logbook. The “Oscar access” switch cuts everything.",
+        "description": "Tick, one by one, the devices whose state Oscar may tell on the phone, then those he may control (turn on or off, open, close, set, run a scene). Only those you already expose to voice assistants are offered; removing the exposure removes them from Oscar too.\n\n🔒 By default, Oscar asks for your code or your password before unlocking, disarming the alarm, opening the gate or the garage door, and before telling the state of presence, locks, alarm, doors and windows (marked ⚠), which tell when your home is empty. Each protection can be unticked, and devices can be exempted: your choice, your responsibility. Locking, arming, closing and stopping never require a code.\n\nTwo secrets, either one is enough: a four to eight digit code, spoken aloud or typed on the phone keypad, and a spoken password (a word or a short phrase). They are checked here: Folonia does not know them, only their fingerprint is kept. Current code: {lock_state}; current password: {phrase_state}. Leave a field empty to keep what is set. Five wrong attempts in twenty-four hours, code and password together, block the lock; turning “Oscar access” off then on unblocks.\n\nEvery read and every command is written to the logbook. The “Oscar access” switch cuts everything.",
         "data": {
           "read": "Devices Oscar may read",
           "control": "Devices Oscar may control",
-          "lock_code": "Voice lock code (4 to 8 digits)",
-          "lock_read": "Code to read sensitive devices"
+          "lock_open": "Code to unlock, disarm, open",
+          "lock_read": "Code to read sensitive devices",
+          "exempt": "Devices without code",
+          "lock_code": "Numeric code (4 to 8 digits)",
+          "clear_lock_code": "Erase the numeric code",
+          "lock_phrase": "Spoken password",
+          "clear_lock_phrase": "Erase the password"
         },
         "data_description": {
-          "lock_read": "Ticked: presence, locks, alarm, doors and windows are only read after the voice lock code."
+          "lock_open": "Ticked (recommended): locks, alarm, gate and garage door only open with your code or your password. Unticked, anyone calling from your number can ask Oscar to unlock, disarm or open.",
+          "lock_read": "Ticked (recommended): presence, locks, alarm, doors and windows are only read after your code or your password. Unticked, Oscar tells their state to anyone calling from your number.",
+          "exempt": "Among shared devices, those Oscar reads and controls without code, even with the boxes ticked. For example, the garage door, to ask “Did I close the garage?” without a code.",
+          "lock_code": "Spoken aloud, or typed on the phone keypad when you are not alone.",
+          "lock_phrase": "A word or a short phrase, spoken aloud, for example “red dragon”. Capitals, accents and punctuation do not matter. At least four letters; six letters or two words are recommended."
         }
       }
     },
@@ -50,7 +59,8 @@
     },
     "error": {
       "invalid_lock_code": "The code is four to eight digits.",
-      "lock_code_required": "Choose a voice lock code: a lock, the alarm, a gate or a garage door is ticked for control, or a sensitive device is shared while “Code to read sensitive devices” is ticked."
+      "invalid_lock_phrase": "The password has at least four letters or digits, and sixty-four characters at most.",
+      "lock_code_required": "Choose a code or a password: a ticked protection applies to a shared device (lock, alarm, gate, garage door, presence, door or window). Otherwise, untick it or exempt the device."
     }
   },
   "entity": {

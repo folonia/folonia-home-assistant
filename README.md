@@ -15,21 +15,42 @@ votre abonnement [Folonia](https://folonia.fr) : Oscar lit et commande les seuls
   verrouiller, armer, régler une température, une position ou une luminosité, lancer une scène.
 - Rien d’autre : il ne voit ni ne commande ce que vous n’avez pas coché.
 
-## Le code vocal
+## Le code ou le mot de passe
 
-Un code de quatre à huit chiffres, choisi dans les options de l’intégration, dit au téléphone et
-vérifié **chez vous** : Folonia ne le connaît pas, seule son empreinte est gardée dans Home
-Assistant.
+Folonia, c’est d’abord le mains libres : le secret se dit à voix haute. Deux secrets possibles,
+choisis dans les options de l’intégration ; l’un ou l’autre suffit :
 
-- **Toujours sous code, sans réglage** : déverrouiller une serrure, désarmer l’alarme, ouvrir le
-  portail ou la porte de garage. Verrouiller, armer, fermer et arrêter passent sans code.
-- **Sous code par défaut, décochable** : lire la présence, une serrure, l’alarme, une porte ou
-  une fenêtre. Ces appareils disent quand votre maison est vide ; ils sont marqués d’un ⚠ dans
-  la liste. Décochez « Code pour lire les appareils sensibles » si vous préférez qu’Oscar en
-  dise l’état sans code à quiconque appelle depuis votre numéro.
-- Cinq codes faux en vingt-quatre heures, en lecture comme en commande, bloquent le code ; Home
-  Assistant vous prévient. Éteignez puis rallumez « Accès d’Oscar », ou enregistrez un nouveau
-  code, pour débloquer.
+- un **code chiffré** de quatre à huit chiffres, dit à voix haute ou **tapé sur le clavier du
+  téléphone** (puis dièse) si vous n’êtes pas seul ;
+- un **mot de passe parlé** : un mot ou une courte phrase, par exemple « dragon rouge ».
+  Majuscules, accents et ponctuation ne comptent pas. Quatre lettres au moins ; six lettres ou
+  deux mots sont conseillés.
+
+Ils sont vérifiés **chez vous** : seule leur empreinte est gardée dans Home Assistant, chacun se
+règle et s’efface séparément. Folonia ne les enregistre pas : ce que vous dites ou tapez est
+transmis avec la demande, puis oublié.
+
+## Les réglages
+
+Chaque protection est **cochée par défaut, expliquée, et se décoche** : nous proposons ce qu’il
+faut pour la sécurité, mais si vous préférez faire autrement, c’est votre choix, sous votre
+responsabilité.
+
+| Réglage | Par défaut | Ce qu’il fait |
+| --- | --- | --- |
+| **Code pour déverrouiller, désarmer, ouvrir** | coché | Déverrouiller une serrure, désarmer l’alarme, ouvrir le portail ou la porte de garage demandent le code ou le mot de passe. Décoché, quiconque appelle depuis votre numéro peut le demander à Oscar. |
+| **Code pour lire les appareils sensibles** | coché | La présence, une serrure, l’alarme, une porte ou une fenêtre (marquées d’un ⚠) disent quand votre maison est vide : Oscar n’en dit l’état qu’après le code ou le mot de passe. |
+| **Appareils sans code** | aucun | Parmi les appareils partagés, ceux qu’Oscar lit et commande sans code, même cases cochées. Par exemple la porte du garage, pour demander « J’ai bien fermé le garage ? » sans code. |
+| **Code chiffré**, **Mot de passe parlé** | aucun | Les secrets, l’un ou l’autre. Laissez le champ vide pour garder ce qui est réglé ; une case efface chacun. |
+
+- Verrouiller, armer, fermer et arrêter ne demandent jamais de code.
+- Un secret n’est exigé que si une protection cochée porte sur un appareil partagé et non
+  exempté ; sinon, rien n’est imposé.
+- Cinq essais faux en vingt-quatre heures, code et mot de passe ensemble, dits ou tapés, en
+  lecture comme en commande, bloquent le verrou ; Home Assistant vous prévient. Éteignez puis
+  rallumez « Accès d’Oscar », ou enregistrez un nouveau secret, pour débloquer.
+- Une installation plus ancienne garde son code et ses choix ; les nouveaux réglages y prennent
+  leur valeur par défaut.
 
 ## Vos garanties
 
@@ -40,7 +61,7 @@ Assistant.
 - **Par défaut, Oscar ne voit rien.** Vous cochez un appareil à la fois, parmi ceux déjà exposés
   aux assistants vocaux. La règle est appliquée chez vous, à chaque demande.
 - **Tout est au journal de bord.** Chaque lecture, chaque commande, chaque code refusé, jamais
-  le code lui-même.
+  le code ni le mot de passe lui-même.
 - **Un interrupteur coupe tout.** « Accès d’Oscar » éteint : la liaison est fermée, rien ne
   sort ; Oscar dit que l’accès est coupé.
 - **Rien n’est conservé chez Folonia.** Ce qu’Oscar lit sert à répondre pendant l’appel, puis
@@ -70,7 +91,8 @@ Il faut un abonnement Folonia, Home Assistant 2025.2 ou plus récent, et
 1. Exposez les appareils voulus aux assistants vocaux : **Paramètres**, **Assistants vocaux**,
    onglet **Exposer**.
 2. **Paramètres**, **Appareils et services**, **Folonia**, **Configurer** : cochez ce qu’Oscar
-   peut lire, puis ce qu’il peut commander, et choisissez le code vocal.
+   peut lire, puis ce qu’il peut commander, réglez les protections, et choisissez un code, un mot
+   de passe, ou les deux.
 
 Pourquoi deux étapes ? Home Assistant expose d’office certains appareils nouveaux ; sans le
 choix propre à Folonia, Oscar en verrait plus que vous ne l’avez décidé. Retirer l’exposition
@@ -78,10 +100,14 @@ retire aussi l’appareil à Oscar.
 
 ## Au téléphone
 
-- « La porte du garage est fermée ? » (Oscar demande le code si la case est cochée.)
+- « La porte du garage est fermée ? » (Oscar demande le code si la case est cochée et que la
+  porte n’est pas exemptée.)
 - « Il fait combien dans le salon ? »
 - « Éteins la lumière de la cuisine. »
-- « Ouvre le portail. » (Oscar demande le code.)
+- « Ouvre le portail. » (Oscar demande le code ; vous le dites, ou vous dites « je le tape » et
+  le tapez sur le clavier, puis dièse.)
+
+Oscar ne répète jamais un code ni un mot de passe.
 
 Si Home Assistant est éteint ou sans Internet, Oscar le dit tout de suite. Les proches de votre
 abonnement et les appels d’essai n’ont pas accès à votre maison.
@@ -111,8 +137,9 @@ pièce, le domaine et la classe des appareils cochés ; l’état des seuls appa
 (quelques attributs : luminosité, position, températures, humidité) ; la version de
 l’intégration. Folonia ne garde que la liaison (une empreinte de son secret, sa date), effacée
 quand vous déliez votre maison. L’état lu passe, pendant l’appel, par le fournisseur
-d’intelligence artificielle d’Oscar ; voir la politique de confidentialité de Folonia. Le code
-vocal, dit au téléphone, passe lui aussi par ce fournisseur.
+d’intelligence artificielle d’Oscar ; voir la politique de confidentialité de Folonia. Un code
+ou un mot de passe dit à voix haute passe lui aussi par ce fournisseur ; un code tapé sur le
+clavier, non : il ne passe que par Folonia, sans être enregistré.
 
 ## Développement
 
@@ -139,9 +166,11 @@ avancé, le formulaire d’ajout propose l’adresse du service, pour un laborat
 Folonia links your Home Assistant to your Folonia subscription, so that Oscar, the phone
 assistant, can read and control the devices **you** pick, among those already exposed to voice
 assistants. Your home opens an outbound connection: no open port, no Home Assistant token leaves
-your home. Unlocking, disarming and opening a gate or garage door always require a voice code,
-checked locally; reading presence, locks, alarm, doors and windows requires it too by default
-(an option you can untick). Every read and command goes to the logbook; the “Oscar access”
-switch cuts everything. Install with HACS (custom repository for now, category Integration),
+your home. By default, unlocking, disarming, opening a gate or garage door, and reading
+presence, locks, alarm, doors and windows require a secret checked locally: a four to eight
+digit code, spoken or typed on the phone keypad, or a spoken password (a word or a short
+phrase), either one. Each protection can be unticked and devices can be exempted: your choice,
+your responsibility. Five wrong attempts in twenty-four hours block the lock. Every read and
+command goes to the logbook; the “Oscar access” switch cuts everything. Install with HACS (custom repository for now, category Integration),
 then add the Folonia integration with the eight-character code from your Folonia account.
 Licensed under Apache 2.0.

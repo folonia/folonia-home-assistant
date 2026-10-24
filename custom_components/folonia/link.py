@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any
 
 import aiohttp
@@ -27,6 +27,8 @@ from . import exposure, protocol
 from .const import (
     CONF_LOCK_HASH,
     CONF_LOCK_SALT,
+    CONF_PHRASE_HASH,
+    CONF_PHRASE_SALT,
     CONF_SECRET,
     CONF_URL,
     CONF_VERIFY_SSL,
@@ -42,12 +44,23 @@ from .voicelock import VoiceLock
 _LOGGER = logging.getLogger(__name__)
 
 STORAGE_VERSION = 1
+
 #: Le service répond au `hello` aussitôt ; au-delà, la liaison est refaite.
 HELLO_TIMEOUT = 10
 #: Le service envoie un ping toutes les 25 s ; celui-ci détecte un service disparu.
 HEARTBEAT = 60
 #: Une autre installation a pris la place : on n'insiste pas tout de suite.
 REPLACED_DELAY = 60
+
+
+def voice_lock(options: Mapping[str, Any]) -> VoiceLock:
+    """Le verrou d'après les options : code chiffré et mot de passe, l'un ou l'autre."""
+    return VoiceLock(
+        options.get(CONF_LOCK_HASH),
+        options.get(CONF_LOCK_SALT),
+        options.get(CONF_PHRASE_HASH),
+        options.get(CONF_PHRASE_SALT),
+    )
 
 
 def storage_key(entry_id: str) -> str:
@@ -62,7 +75,7 @@ class FoloniaLink:
         self.entry = entry
         self.journal = Journal(hass)
         #: Le verrou vocal, d'après les options ; rechargé quand elles changent.
-        self.lock = VoiceLock(entry.options.get(CONF_LOCK_HASH), entry.options.get(CONF_LOCK_SALT))
+        self.lock = voice_lock(entry.options)
         #: L'interrupteur « Accès d'Oscar ».
         self.enabled = True
         self.connected = False
@@ -90,16 +103,12 @@ class FoloniaLink:
 
     @callback
     def async_options_updated(self) -> None:
-        """Nouvelles options : le verrou suit, et un nouveau code le débloque."""
-        options = self.entry.options
-        new = VoiceLock(options.get(CONF_LOCK_HASH), options.get(CONF_LOCK_SALT))
-        if (options.get(CONF_LOCK_HASH), options.get(CONF_LOCK_SALT)) == (
-            self.lock._hash,
-            self.lock._salt,
-        ):
+        """Nouvelles options : le verrou suit, et un secret changé (ou effacé) le débloque."""
+        new = voice_lock(self.entry.options)
+        if new.fingerprint == self.lock.fingerprint:
             new.failures.extend(self.lock.failures)
         else:
-            self.journal.record("code du verrou vocal modifié")
+            self.journal.record("code ou mot de passe du verrou vocal modifié")
         self.lock = new
 
     @callback
@@ -273,8 +282,8 @@ class FoloniaLink:
             for entity_id in request.entity_ids
             if entity_id in shown and (state := self.hass.states.get(entity_id)) is not None
         ]
-        guarded = exposure.lock_read(self.entry.options)
-        sensitive = [s.entity_id for s in found if guarded and exposure.is_sensitive(s)]
+        options = self.entry.options
+        sensitive = [s.entity_id for s in found if exposure.read_guarded(s, options)]
         verdict = "ok"
         if sensitive:
             verdict = await self._verify(request.code, sensitive[0])
@@ -295,7 +304,8 @@ class FoloniaLink:
         return protocol.ok(request.id, states=states)
 
     async def _verify(self, code: str | None, entity_id: str) -> str:
-        """Le verrou vocal, pour une commande ou une lecture : les codes faux comptent pareil."""
+        """Le verrou vocal, pour une commande ou une lecture : les essais faux comptent pareil,
+        code ou mot de passe, dit ou tapé."""
         verdict = self.lock.check(code)
         if verdict in ("code_invalid", "locked") and code:
             await self._save()
@@ -305,7 +315,7 @@ class FoloniaLink:
         return verdict
 
     async def _command(self, request: protocol.Request) -> str:
-        """Une commande : entité cochée en commande, service permis, verrou si sensible."""
+        """Une commande : entité cochée en commande, service permis, verrou si elle ouvre."""
         entity_id = request.entity_id
         if entity_id not in exposure.allowed_control(self.hass, self.entry.options):
             self.journal.record("a tenté une commande sur un appareil non commandable", entity_id)
@@ -322,7 +332,8 @@ class FoloniaLink:
             if not allowed_key[1] <= value <= allowed_key[2]:
                 return protocol.error(request.id, "bad_request")
             data[key] = value
-        coded = exposure.needs_code(state, request.service, data)
+        options = self.entry.options
+        coded = exposure.command_guarded(state, request.service, data, options)
         if coded:
             verdict = await self._verify(request.code, entity_id)
             if verdict != "ok":
@@ -339,9 +350,7 @@ class FoloniaLink:
             f"a commandé : {service} → {after.state if after else 'inconnu'}", entity_id
         )
         # L'état d'une entité sensible ne sort qu'avec le bon code, après une commande aussi.
-        hidden = (
-            not coded and exposure.lock_read(self.entry.options) and exposure.is_sensitive(state)
-        )
+        hidden = not coded and exposure.read_guarded(state, options)
         if after is None or hidden:
             return protocol.ok(request.id)
         return protocol.ok(request.id, result=exposure.snapshot(after))
@@ -353,11 +362,11 @@ class FoloniaLink:
             persistent_notification.async_create(
                 self.hass,
                 (
-                    "Cinq codes faux ont été dits au téléphone en vingt-quatre heures. "
-                    "Oscar ne déverrouille plus, ne désarme plus et n'ouvre plus le portail ni "
-                    "la porte de garage, et ne dit plus l'état des appareils sensibles sous code. "
-                    "Pour débloquer : "
-                    "éteignez puis rallumez « Accès d'Oscar », ou enregistrez un nouveau code "
+                    "Cinq codes ou mots de passe faux ont été donnés au téléphone en "
+                    "vingt-quatre heures. Oscar ne fait plus rien de ce qui est sous code : ni "
+                    "déverrouiller, ni désarmer, ni ouvrir le portail ou la porte de garage, ni "
+                    "dire l'état des appareils sensibles. Pour débloquer : éteignez puis "
+                    "rallumez « Accès d'Oscar », ou enregistrez un nouveau code ou mot de passe "
                     "dans les options de l'intégration."
                 ),
                 title="Folonia : verrou vocal bloqué",
