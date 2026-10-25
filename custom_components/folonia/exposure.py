@@ -18,6 +18,7 @@ from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 
+from . import protocol
 from .const import (
     ASSISTANT,
     CONF_CONTROL,
@@ -36,7 +37,7 @@ from .const import (
     SENSITIVE_CLASSES,
     SENSITIVE_DOMAINS,
 )
-from .protocol import MAX_ENTITIES, entity_payload, state_payload
+from .protocol import MAX_ENTITIES, state_payload
 
 
 @callback
@@ -164,7 +165,7 @@ def command_guarded(
 
 
 @callback
-def area_name(hass: HomeAssistant, entity_id: str) -> str | None:
+def area_entry(hass: HomeAssistant, entity_id: str) -> ar.AreaEntry | None:
     """La pièce de l'entité, ou à défaut celle de son appareil."""
     entry = er.async_get(hass).async_get(entity_id)
     if entry is None:
@@ -175,21 +176,42 @@ def area_name(hass: HomeAssistant, entity_id: str) -> str | None:
         area_id = device.area_id if device else None
     if area_id is None:
         return None
-    area = ar.async_get(hass).async_get_area(area_id)
+    return ar.async_get(hass).async_get_area(area_id)
+
+
+@callback
+def area_name(hass: HomeAssistant, entity_id: str) -> str | None:
+    """Le nom de la pièce de l'entité, ou à défaut de celle de son appareil."""
+    area = area_entry(hass, entity_id)
     return area.name if area else None
 
 
 @callback
+def entity_aliases(hass: HomeAssistant, entity_id: str) -> list[str]:
+    """Les alias d'Assist de l'entité, tels que l'utilisateur les a écrits ; aucun sans registre.
+
+    La valeur spéciale de Home Assistant 2026.4 et suivants (« le nom de l'entité ») n'est pas
+    un alias écrit : elle n'est pas rendue.
+    """
+    entry = er.async_get(hass).async_get(entity_id)
+    return protocol.alias_texts(entry.aliases) if entry else []
+
+
+@callback
 def describe(hass: HomeAssistant, entity_id: str, mode: str = "read") -> dict[str, Any] | None:
+    """L'entité telle qu'Oscar la voit : nom, pièce, alias, relus à chaque liste."""
     state = hass.states.get(entity_id)
     if state is None:
         return None
-    return entity_payload(
+    area = area_entry(hass, entity_id)
+    return protocol.entity_payload(
         entity_id,
         state.name,
-        area_name(hass, entity_id),
+        area.name if area else None,
         state.attributes.get("device_class"),
         mode,
+        entity_aliases(hass, entity_id),
+        area.aliases if area else (),
     )
 
 

@@ -267,7 +267,7 @@ class FoloniaLink:
                     if entity is not None
                 ]
                 self.journal.record(f"a consulté la liste des appareils partagés ({len(entities)})")
-                return protocol.ok(request.id, entities=entities)
+                return protocol.entities_reply(request.id, entities)
             return await self._read(request, set(visible))
         except Exception:
             _LOGGER.exception("requête Folonia non traitée")

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 DOMAIN = "folonia"
-VERSION = "0.5.0"
+VERSION = "0.5.1"
 
 #: La page Folonia de la barre latérale : adresse, titre, icône.
 PANEL_URL = "folonia"

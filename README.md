@@ -39,10 +39,16 @@ Assistant. Elle suit le thème clair ou sombre de Home Assistant et se lit sur t
 
 - **Appareils** : l’interrupteur **Accès d’Oscar**, un résumé (appareils partagés, commandés,
   sans code), puis la liste des appareils exposés aux assistants vocaux, avec recherche (nom,
-  pièce, type), filtres (Tous, Partagés, Sensibles, Sans code), pièce et tri. Pour chacun : sa
-  pièce, son type et son état du moment, ⚠ s’il est sensible, et trois interrupteurs, **Lire**,
-  **Commander** (qui coche Lire) et **Sans code** (pour un appareil partagé qui est sensible ou
-  qui ouvre la maison).
+  pièce, alias, type), filtres (Tous, Partagés, Sensibles, Sans code), pièce et tri. Pour
+  chacun : ses alias, sa pièce, son type et son état du moment, ⚠ s’il est sensible, et trois
+  interrupteurs, **Lire**, **Commander** (qui coche Lire) et **Sans code** (pour un appareil
+  partagé qui est sensible ou qui ouvre la maison).
+- **Alias** : touchez le nom d’un appareil (✎) pour lui donner d’autres noms, par exemple
+  « portillon » pour « Portail » : Oscar le reconnaît aussi sous ces noms. Ce sont les alias
+  d’Assist : les modifier dans la page les modifie aussi pour Assist, et inversement. Ils
+  s’enregistrent tout de suite, à part du reste. Les alias de la pièce s’affichent aussi ; ils se
+  modifient dans les réglages des pièces de Home Assistant. Un appareil sans identifiant unique
+  dans Home Assistant n’a pas d’alias.
 - **Code et protections** : le code chiffré et le mot de passe parlé (réglé ou non ; un champ
   vide garde ce qui est réglé, **Effacer** l’efface), les deux protections, et l’état du verrou
   vocal (bloqué ou non, essais faux récents).
@@ -159,7 +165,7 @@ sans secret ni code.
 ## Données
 
 Sortent de chez vous, seulement pendant un appel et sans être gardés par Folonia : le nom, la
-pièce, le domaine et la classe des appareils cochés ; l’état des seuls appareils demandés
+pièce, leurs alias, le domaine et la classe des appareils cochés ; l’état des seuls appareils demandés
 (quelques attributs : luminosité, position, températures, humidité) ; la version de
 l’intégration. Folonia ne garde que la liaison (une empreinte de son secret, sa date), effacée
 quand vous déliez votre maison. L’état lu passe, pendant l’appel, par le fournisseur
@@ -172,7 +178,7 @@ clavier, non : il ne passe que par Folonia, sans être enregistré.
 Protocole de la liaison : `custom_components/folonia/protocol.py`. La page Folonia : un seul
 module JavaScript, sans compilation ni dépendance, `custom_components/folonia/frontend/`, et ses
 commandes WebSocket (`folonia/settings`, `folonia/save`, `folonia/secret`, `folonia/journal`,
-réservées aux administrateurs) dans `websocket.py`. Tests contre le cœur de Home Assistant, avec
+`folonia/aliases`, réservées aux administrateurs) dans `websocket.py`. Tests contre le cœur de Home Assistant, avec
 un faux service Folonia :
 
 ```sh
@@ -205,5 +211,8 @@ command goes to the logbook; the “Oscar access” switch cuts everything. Inst
 eight-character code from your Folonia account. Settings live in the **Folonia** page of the
 Home Assistant sidebar (administrators only; also reached through **Configure** on the
 integration, or `/folonia`): shared devices with search and filters, code and protections, and
-the integration’s log. Changes are kept until **Save** and checked by the integration. The page
+the integration’s log. Changes are kept until **Save** and checked by the integration. Oscar
+also knows your devices and areas by their Assist aliases (“portillon” for “Portail”); a
+device’s aliases can be edited from the page (tap its name) and are the same as Assist’s, while
+area aliases are edited in the Home Assistant area settings. The page
 is in French. Licensed under Apache 2.0.

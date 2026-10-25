@@ -54,11 +54,11 @@ async def test_appariement_par_code(hass: HomeAssistant, folonia: tuple[FakeFolo
         CONF_LOCK_READ: True,
         CONF_EXEMPT: [],
     }
-    assert fake.paired_with == [{"code": "K7QM4XT2", "component": "0.5.0"}]
+    assert fake.paired_with == [{"code": "K7QM4XT2", "component": "0.5.1"}]
 
     # La liaison s'ouvre aussitôt, et l'intégration le montre.
     await fake.connected.wait()
-    assert fake.received[0] == {"type": "hello", "protocol": 1, "component": "0.5.0"}
+    assert fake.received[0] == {"type": "hello", "protocol": 1, "component": "0.5.1"}
     entry = hass.config_entries.async_entries(DOMAIN)[0]
     # La liaison tourne en tâche de fond : elle lit le `welcome` un peu après le faux service.
     for _ in range(100):

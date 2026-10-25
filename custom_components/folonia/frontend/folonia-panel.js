@@ -8,11 +8,18 @@
 // La page ne décide de rien : elle montre ce que l'intégration lui rend (`folonia/settings`),
 // garde les changements jusqu'à « Enregistrer », puis les envoie (`folonia/save`,
 // `folonia/secret`). L'intégration recoupe tout avec la liste permise et applique les règles.
-// Tout texte venu de Home Assistant (noms d'appareils, pièces, journal) est échappé.
+// Les alias d'un appareil, ceux d'Assist, se modifient dans une petite fenêtre et s'enregistrent
+// à part (`folonia/aliases`) : ils vont au registre des entités de Home Assistant, pas dans les
+// réglages de Folonia. Tout texte venu de Home Assistant (noms d'appareils, pièces, alias,
+// journal) est échappé.
 
 const TAG = "folonia-panel";
 const EXPOSE_URL = "/config/voice-assistants/expose";
 const LOGBOOK_URL = "/logbook";
+const AREAS_URL = "/config/areas";
+/** Les alias d'un appareil que la page enregistre, au plus, et leur longueur : ceux de l'intégration. */
+const MAX_ALIASES = 20;
+const MAX_ALIAS = 100;
 
 const ICONS = {
   lampe:
@@ -34,6 +41,8 @@ const ICONS = {
 };
 const SEARCH_ICON =
   '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
+const PEN_ICON =
+  '<svg class="pen" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>';
 const MENU_ICON =
   '<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>';
 
@@ -46,6 +55,11 @@ const ERRORS = {
     "Choisissez un code ou un mot de passe : une protection cochée porte sur un appareil partagé (serrure, alarme, portail, porte de garage, présence, porte ou fenêtre). Sinon, décochez-la, ou laissez l’appareil sans code.",
   not_loaded: "L’intégration Folonia n’est pas chargée. Vérifiez-la dans Paramètres, Appareils et services.",
   unauthorized: "Cette page est réservée aux administrateurs de Home Assistant.",
+  alias_not_allowed:
+    "Cet appareil n’est pas exposé aux assistants vocaux : ses alias ne se modifient pas ici.",
+  alias_not_editable:
+    "Cet appareil n’a pas d’identifiant unique dans Home Assistant : ses alias ne se modifient pas.",
+  invalid_format: "Home Assistant a refusé la demande. Rechargez la page et réessayez.",
 };
 
 const FILTERS = [
@@ -66,6 +80,11 @@ function esc(value) {
 
 function capitalize(text) {
   return text ? text.charAt(0).toLocaleUpperCase("fr") + text.slice(1) : text;
+}
+
+/** Un alias tel qu'il est saisi : une ligne, espaces réduits, borné. */
+function cleanAlias(text) {
+  return String(text ?? "").replace(/\s+/g, " ").trim().slice(0, MAX_ALIAS);
 }
 
 function plural(n, one, many) {
@@ -221,9 +240,16 @@ const STYLE = `
   .ico { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--f-chip); color: var(--f-muted); }
   .ico.sens { background: var(--f-warn-bg); color: var(--f-warn-text); }
   .names { min-width: 0; }
-  .names b { display: block; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  button.names { font: inherit; color: inherit; text-align: left; background: none; border: 0; padding: 2px 4px; margin: -2px -4px; border-radius: 8px; cursor: pointer; }
+  button.names:hover .pen { color: var(--f-accent); }
+  button.names:focus-visible { outline: 2px solid var(--f-accent); }
+  .title { display: flex; align-items: center; gap: 4px; min-width: 0; }
+  .names b { display: block; min-width: 0; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pen { flex: none; color: var(--f-muted); opacity: 0.8; }
   .names small { display: block; color: var(--f-muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .names .aka { font-style: italic; }
   .names .warn { color: var(--f-warn-text); }
+  .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .cell { display: grid; place-items: center; color: var(--f-muted); }
   .empty { padding: 24px 16px; text-align: center; color: var(--f-muted); display: grid; gap: 8px; justify-items: center; }
   .foot { padding: 10px 12px; border-top: 1px solid var(--f-line); }
@@ -278,6 +304,25 @@ const STYLE = `
   .savebar .in { max-width: 64rem; margin: 0 auto; display: flex; align-items: center; gap: 8px; }
   .savebar p { flex: 1 1 0; min-width: 0; font-size: 14px; }
   .savebar .error { max-width: 64rem; margin: 6px auto 0; }
+  dialog.sheet { border: 0; padding: 0; width: min(28rem, calc(100% - 32px)); max-height: calc(100% - 32px); overflow-y: auto; border-radius: 16px; background: var(--f-card); color: var(--f-fg); box-shadow: 0 8px 32px rgb(0 0 0 / 0.3); }
+  dialog.sheet::backdrop { background: rgb(0 0 0 / 0.45); }
+  .sheet-in { padding: 16px; display: grid; gap: 12px; }
+  .sheet-in:focus { outline: none; }
+  .sheet-head { display: flex; align-items: flex-start; gap: 8px; }
+  .sheet-head div { flex: 1; min-width: 0; }
+  .sheet-head p { font-size: 13px; color: var(--f-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .x { flex: none; display: grid; place-items: center; width: 36px; height: 36px; margin: -6px -8px 0 0; border: 0; border-radius: 50%; background: none; color: var(--f-muted); font-size: 22px; line-height: 1; cursor: pointer; }
+  .x:hover { background: var(--f-chip); }
+  .pills { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+  .pill { display: inline-flex; align-items: center; gap: 2px; max-width: 100%; padding: 3px 4px 3px 12px; border-radius: 999px; background: var(--f-chip); font-size: 14px; }
+  .pill span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pill button { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 50%; background: none; color: var(--f-muted); font-size: 18px; line-height: 1; cursor: pointer; }
+  .pill button:hover { background: color-mix(in srgb, var(--f-fg) 10%, transparent); color: var(--f-fg); }
+  .sheet .input-row input { letter-spacing: 0; }
+  .area-al { font-size: 13px; color: var(--f-muted); border-top: 1px solid var(--f-line); padding-top: 12px; }
+  .sheet-actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .x:focus-visible, .pill button:focus-visible { outline: 2px solid var(--f-accent); outline-offset: 1px; }
+
   .toast { position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--f-fg); color: var(--f-bg); padding: 8px 16px; border-radius: 8px; font-size: 14px; z-index: 3; box-shadow: 0 2px 8px rgb(0 0 0 / 0.25); }
 
   @media (max-width: 480px) {
@@ -286,11 +331,14 @@ const STYLE = `
     .head span:not(:first-child) { font-size: 10px; }
     .head span:not(:first-child) { text-align: center; }
     .names small { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .names .aka { display: block; white-space: nowrap; }
     .savebar p { font-size: 13px; }
     .savebar .btn { padding: 8px 14px; }
     .ico { width: 30px; height: 30px; }
     .who { gap: 8px; }
     .log li { grid-template-columns: 64px minmax(0, 1fr); padding-left: 12px; padding-right: 12px; }
+    dialog.sheet { width: 100%; max-width: 100%; margin: auto 0 0; border-radius: 16px 16px 0 0; }
+    .sheet-in { padding-bottom: calc(16px + var(--safe-area-inset-bottom, 0px)); }
   }
   @media (prefers-reduced-motion: reduce) { .sw span, .sw span::after { transition: none; } }
 `;
@@ -323,6 +371,8 @@ class FoloniaPanel extends HTMLElement {
     this._built = false;
     this._loading = false;
     this._liveKey = "";
+    /** Les alias en cours de modification : appareil, liste voulue, saisie, erreur. */
+    this._alias = null;
   }
 
   // --- Ce que Home Assistant donne ----------------------------------------------------------
@@ -458,6 +508,7 @@ class FoloniaPanel extends HTMLElement {
           <p class="error" id="save-error" role="alert" hidden></p>
         </div>
         <div class="toast" id="toast" role="status" hidden></div>
+        <dialog class="sheet" id="aliases" aria-labelledby="aliases-title"></dialog>
       </div>`;
     const root = this.shadowRoot;
     root.getElementById("menu").addEventListener("click", () => {
@@ -473,6 +524,21 @@ class FoloniaPanel extends HTMLElement {
     main.addEventListener("click", (ev) => this._onClick(ev));
     main.addEventListener("change", (ev) => this._onChange(ev));
     main.addEventListener("input", (ev) => this._onInput(ev));
+    const dialog = root.getElementById("aliases");
+    dialog.addEventListener("click", (ev) => this._onAliasClick(ev));
+    dialog.addEventListener("input", (ev) => {
+      if (ev.target.id === "alias-input" && this._alias) {
+        this._alias.input = ev.target.value;
+        if (this._alias.error) this._setAliasError("");
+      }
+    });
+    dialog.addEventListener("submit", (ev) => {
+      ev.preventDefault();
+      this._addAlias();
+    });
+    dialog.addEventListener("close", () => {
+      this._alias = null;
+    });
     this._renderAll();
   }
 
@@ -633,7 +699,8 @@ class FoloniaPanel extends HTMLElement {
       if (this._filter === "sensitive" && !d.sensitive) return false;
       if (this._filter === "exempt" && !choice.exempt) return false;
       if (!query) return true;
-      return `${d.name} ${d.area || ""} ${d.kind} ${d.entity_id}`
+      const aliases = [...(d.aliases || []), ...(d.area_aliases || [])].join(" ");
+      return `${d.name} ${d.area || ""} ${aliases} ${d.kind} ${d.entity_id}`
         .toLocaleLowerCase("fr")
         .includes(query);
     });
@@ -654,12 +721,21 @@ class FoloniaPanel extends HTMLElement {
     const name = d.name || d.entity_id;
     const details = [d.area || "Sans pièce", d.kind, d.state].filter(Boolean).map(esc).join(" · ");
     const dash = '<span aria-hidden="true">—</span>';
+    const aliases = d.aliases || [];
+    const aka = aliases.length
+      ? `<small class="aka">Alias : ${aliases.map(esc).join(", ")}</small>`
+      : "";
+    const names = `<span class="title"><b title="${id}">${esc(name)}</b>${
+      d.aliases_editable ? PEN_ICON : ""
+    }</span>${aka}<small>${details}${d.sensitive ? ' · <span class="warn">⚠ sensible</span>' : ""}</small>`;
+    // Un appareil au registre des entités : toucher son nom ouvre ses alias.
+    const who = d.aliases_editable
+      ? `<button class="names" type="button" data-act="aliases" data-id="${id}" aria-haspopup="dialog">${names}<span class="vh">, modifier les alias</span></button>`
+      : `<span class="names">${names}</span>`;
     return `<div class="item" role="listitem">
       <div class="who">
         <span class="ico${d.sensitive ? " sens" : ""}">${svg(iconFor(d))}</span>
-        <span class="names"><b title="${id}">${esc(name)}</b><small>${details}${
-          d.sensitive ? ' · <span class="warn">⚠ sensible</span>' : ""
-        }</small></span>
+        ${who}
       </div>
       <span class="cell">${toggle(`data-id="${id}" data-field="read"`, shared, choice.control, `Lire : ${name}`)}</span>
       <span class="cell">${
@@ -911,6 +987,8 @@ class FoloniaPanel extends HTMLElement {
       this._load();
     } else if (act === "to-code") {
       this._showTab("code");
+    } else if (act === "aliases") {
+      this._openAliases(button.dataset.id);
     } else if (act === "journal") {
       this._loadJournal();
     } else if (act === "clear" || act === "keep") {
@@ -974,6 +1052,155 @@ class FoloniaPanel extends HTMLElement {
     this._saveError = "";
     this._renderList();
     this._renderSavebar();
+  }
+
+  // --- Alias d'Assist ------------------------------------------------------------------------
+
+  _openAliases(entityId) {
+    const device = this._byId.get(entityId);
+    if (!device || !device.aliases_editable) return;
+    this._alias = { id: entityId, list: [...(device.aliases || [])], input: "", error: "", busy: false };
+    this._renderAliases();
+    const dialog = this.shadowRoot.getElementById("aliases");
+    // Le clavier du téléphone ne s'ouvre pas d'office : on peut venir seulement retirer.
+    if (!dialog.open) dialog.showModal();
+  }
+
+  _renderAliases() {
+    const edit = this._alias;
+    const dialog = this.shadowRoot.getElementById("aliases");
+    const device = edit && this._byId.get(edit.id);
+    if (!device) {
+      if (dialog.open) dialog.close();
+      return;
+    }
+    const name = device.name || device.entity_id;
+    const pills = edit.list.length
+      ? `<ul class="pills" aria-label="Alias de ${esc(name)}">${edit.list
+          .map(
+            (alias, index) =>
+              `<li class="pill"><span>${esc(alias)}</span><button type="button" data-act="alias-remove" data-index="${index}" aria-label="Retirer ${esc(alias)}">×</button></li>`,
+          )
+          .join("")}</ul>`
+      : `<p class="hint">Aucun alias pour l’instant.</p>`;
+    const full = edit.list.length >= MAX_ALIASES;
+    let area = "";
+    if (device.area) {
+      const link = device.area_id
+        ? `${AREAS_URL}/area/${encodeURIComponent(device.area_id)}`
+        : `${AREAS_URL}/dashboard`;
+      const known = (device.area_aliases || []).map(esc).join(", ");
+      area = `<p class="area-al">Pièce « ${esc(device.area)} » : ${
+        known ? `aussi ${known}` : "aucun alias"
+      }. Ils se modifient dans <a href="${link}">les réglages de la pièce</a>.</p>`;
+    }
+    // Le focus va à la fenêtre elle-même, pas au premier bouton : pas d'anneau sur « Fermer ».
+    dialog.innerHTML = `<div class="sheet-in" tabindex="-1" autofocus>
+      <div class="sheet-head">
+        <div><h2 id="aliases-title">Alias</h2><p>${esc(name)}${device.area ? ` · ${esc(device.area)}` : ""}</p></div>
+        <button class="x" type="button" data-act="alias-close" aria-label="Fermer">×</button>
+      </div>
+      <p class="hint">D’autres noms pour cet appareil : Oscar le reconnaît aussi sous ces noms. Ce sont les alias d’Assist : les modifier ici les modifie aussi pour Assist.</p>
+      ${pills}
+      <form class="input-row" id="alias-form">
+        <input id="alias-input" type="text" maxlength="${MAX_ALIAS}" placeholder="${
+          full ? `${MAX_ALIASES} alias au plus` : "Nouvel alias, par exemple : le portillon"
+        }" value="${esc(edit.input)}" aria-label="Nouvel alias" autocomplete="off" enterkeyhint="done" ${
+          full || edit.busy ? "disabled" : ""
+        }>
+        <button class="btn small" type="submit" ${full || edit.busy ? "disabled" : ""}>Ajouter</button>
+      </form>
+      <p class="error" id="alias-error" role="alert" ${edit.error ? "" : "hidden"}>${esc(edit.error)}</p>
+      ${area}
+      <div class="sheet-actions">
+        <button class="btn" type="button" data-act="alias-close">Annuler</button>
+        <button class="btn primary" type="button" data-act="alias-save" ${edit.busy ? "disabled" : ""}>${
+          edit.busy ? "Enregistrement…" : "Enregistrer"
+        }</button>
+      </div>
+    </div>`;
+  }
+
+  _setAliasError(text) {
+    this._alias.error = text;
+    const error = this.shadowRoot.getElementById("alias-error");
+    if (!error) return;
+    error.textContent = text;
+    error.hidden = !text;
+  }
+
+  /** Ajoute la saisie à la liste ; `false` si elle est refusée (et dit pourquoi). */
+  _addAlias() {
+    const edit = this._alias;
+    if (!edit || edit.busy) return false;
+    const alias = cleanAlias(edit.input);
+    if (!alias) return true;
+    const device = this._byId.get(edit.id);
+    const key = alias.toLocaleLowerCase("fr");
+    let error = "";
+    if (edit.list.some((a) => a.toLocaleLowerCase("fr") === key)) error = "Cet alias est déjà dans la liste.";
+    else if ((device.name || "").toLocaleLowerCase("fr") === key) error = "C’est déjà le nom de l’appareil.";
+    else if (edit.list.length >= MAX_ALIASES) error = `${MAX_ALIASES} alias au plus.`;
+    if (error) {
+      this._setAliasError(error);
+      return false;
+    }
+    edit.list.push(alias);
+    edit.input = "";
+    edit.error = "";
+    this._renderAliases();
+    const input = this.shadowRoot.getElementById("alias-input");
+    if (!input.disabled) input.focus();
+    return true;
+  }
+
+  _onAliasClick(ev) {
+    const dialog = this.shadowRoot.getElementById("aliases");
+    // Un geste sur le fond, hors de la fenêtre : fermer, sans rien enregistrer.
+    if (ev.target === dialog) {
+      dialog.close();
+      return;
+    }
+    const button = ev.target.closest("[data-act]");
+    if (!button || !this._alias) return;
+    const act = button.dataset.act;
+    if (act === "alias-close") {
+      dialog.close();
+    } else if (act === "alias-remove") {
+      const index = Number(button.dataset.index);
+      this._alias.list.splice(index, 1);
+      this._alias.error = "";
+      this._renderAliases();
+      // Le focus passe à l'alias voisin, ou à défaut au bouton Fermer.
+      const pills = dialog.querySelectorAll("[data-act='alias-remove']");
+      (pills[Math.min(index, pills.length - 1)] || dialog.querySelector(".x")).focus();
+    } else if (act === "alias-save") {
+      this._saveAliases();
+    }
+  }
+
+  /** Une saisie en attente est ajoutée d'abord ; l'intégration recoupe et enregistre. */
+  async _saveAliases() {
+    const edit = this._alias;
+    if (!edit || edit.busy || !this._addAlias()) return;
+    edit.busy = true;
+    this._renderAliases();
+    try {
+      const result = await this._hass.callWS({
+        type: "folonia/aliases",
+        entity_id: edit.id,
+        aliases: edit.list,
+      });
+      this._ingest(result);
+      this.shadowRoot.getElementById("aliases").close();
+      if (this._tab === "devices") this._renderList();
+      this._toast("Alias enregistrés");
+    } catch (err) {
+      if (this._alias !== edit) return;
+      edit.busy = false;
+      edit.error = this._message(err);
+      this._renderAliases();
+    }
   }
 
   async _setAccess(on) {

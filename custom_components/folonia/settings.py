@@ -11,6 +11,8 @@ l'entrée. Les règles sont celles de 0.4.0 et 0.4.1 :
   enregistrées quand même : d'ici là, Oscar refuse ce qui demande un code, et la page le dit.
 - Effacer le dernier secret alors qu'il protège encore quelque chose est refusé.
 - Seules les empreintes des secrets sont gardées ; elles ne sortent jamais de ce module.
+- Les alias d'un appareil (0.5.1) sont ceux d'Assist, dans le registre des entités de Home
+  Assistant : la page les modifie là, pour un appareil qu'elle propose seulement.
 """
 
 from __future__ import annotations
@@ -19,8 +21,9 @@ from collections.abc import Callable, Iterable, Mapping
 from typing import Any
 
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 
-from . import exposure
+from . import exposure, protocol
 from .const import (
     CONF_CONTROL,
     CONF_EXEMPT,
@@ -204,6 +207,7 @@ def describe_choices(hass: HomeAssistant, options: Mapping[str, Any]) -> list[di
     """
     read, control, exempt = shared(hass, options)
     read_set, control_set, exempt_set = set(read), set(control), set(exempt)
+    registry = er.async_get(hass)
     devices: list[dict[str, Any]] = []
     for entity_id in exposure.exposed_to_assist(hass):
         state = hass.states.get(entity_id)
@@ -212,11 +216,13 @@ def describe_choices(hass: HomeAssistant, options: Mapping[str, Any]) -> list[di
         sensitive = exposure.is_sensitive(state)
         opens = exposure.opens_home(state)
         device_class = state.attributes.get("device_class")
+        area = exposure.area_entry(hass, entity_id)
         devices.append(
             {
                 "entity_id": entity_id,
                 "name": state.name,
-                "area": exposure.area_name(hass, entity_id),
+                "area": area.name if area else None,
+                "area_id": area.id if area else None,
                 "domain": state.domain,
                 "device_class": device_class if isinstance(device_class, str) else None,
                 "kind": exposure.kind_label(state),
@@ -229,6 +235,45 @@ def describe_choices(hass: HomeAssistant, options: Mapping[str, Any]) -> list[di
                 "read": entity_id in read_set,
                 "control": entity_id in control_set,
                 "exempt": entity_id in exempt_set,
+                # Les alias d'Assist : ceux de l'appareil se modifient ici, s'il est au registre
+                # des entités ; ceux de sa pièce, dans les réglages des pièces.
+                "aliases": _page_aliases(exposure.entity_aliases(hass, entity_id), state.name),
+                "aliases_editable": registry.async_get(entity_id) is not None,
+                "area_aliases": _page_aliases(area.aliases, area.name) if area else [],
             }
         )
     return devices
+
+
+def _page_aliases(aliases: Iterable[Any], name: str | None) -> list[str]:
+    """Les alias tels que la page les montre : tous ceux qu'elle peut enregistrer."""
+    return protocol.clean_aliases(
+        aliases, name, count=protocol.MAX_ALIASES_SET, length=protocol.MAX_NAME
+    )
+
+
+@callback
+def apply_aliases(hass: HomeAssistant, entity_id: str, aliases: Iterable[str]) -> list[str]:
+    """Écrit les alias d'Assist d'un appareil que la page propose ; rend ceux enregistrés.
+
+    Rien n'est cru de la page : l'appareil doit être exposé aux assistants vocaux et au
+    registre des entités ; les alias sont nettoyés, sans doublon ni le nom de l'appareil,
+    bornés. La valeur spéciale de Home Assistant 2026.4 et suivants (« le nom de l'entité »)
+    est gardée à sa place.
+    """
+    state = hass.states.get(entity_id)
+    if state is None or entity_id not in exposure.exposed_to_assist(hass):
+        raise SettingsError("alias_not_allowed")
+    registry = er.async_get(hass)
+    entry = registry.async_get(entity_id)
+    if entry is None:
+        raise SettingsError("alias_not_editable")
+    wanted = _page_aliases(aliases, state.name)
+    if isinstance(entry.aliases, (set, frozenset)):
+        # Jusqu'à Home Assistant 2026.3 : un ensemble de textes, sans ordre.
+        registry.async_update_entity(entity_id, aliases=set(wanted))
+    else:
+        merged = protocol.merge_aliases(entry.aliases, wanted)
+        if merged != list(entry.aliases):
+            registry.async_update_entity(entity_id, aliases=merged)
+    return wanted

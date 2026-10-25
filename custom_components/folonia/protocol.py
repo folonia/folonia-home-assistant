@@ -10,6 +10,7 @@ import json
 import random
 import re
 import unicodedata
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
@@ -30,6 +31,11 @@ MAX_NAME = 100
 MAX_STATE = 255
 MAX_UNIT = 16
 MAX_TEXT_ATTRIBUTE = 64
+#: Alias d'une entité ou d'une pièce transmis au plus, et leur longueur : ceux d'Assist.
+MAX_ALIASES = 8
+MAX_ALIAS = 60
+#: Alias d'une entité que la page Folonia peut enregistrer, au plus ; chacun borné comme un nom.
+MAX_ALIASES_SET = 20
 
 #: Codes de fermeture du serveur.
 CLOSE_REPLACED = 4000
@@ -225,22 +231,102 @@ def _text(value: Any, limit: int) -> str:
     return " ".join(str(value).split())[:limit]
 
 
+def alias_texts(aliases: Iterable[Any]) -> list[str]:
+    """Les alias écrits d'une entrée du registre, dans l'ordre choisi par l'utilisateur.
+
+    Jusqu'à Home Assistant 2026.3, un ensemble de textes (rendu trié) ; depuis 2026.4, une
+    liste ordonnée qui peut contenir une valeur spéciale, « le nom de l'entité »
+    (`COMPUTED_NAME`) : ce n'est pas un texte, elle n'est jamais rendue comme tel.
+    """
+    texts = [alias for alias in aliases if isinstance(alias, str)]
+    if isinstance(aliases, (set, frozenset)):
+        texts.sort(key=str.casefold)
+    return texts
+
+
+def clean_aliases(
+    aliases: Iterable[Any],
+    name: str | None = None,
+    *,
+    count: int = MAX_ALIASES,
+    length: int = MAX_ALIAS,
+) -> list[str]:
+    """Des alias nettoyés : une ligne chacun, sans doublon ni le nom lui-même, bornés."""
+    seen = {_text(name, MAX_NAME).casefold()} if name else set()
+    found: list[str] = []
+    for alias in alias_texts(aliases):
+        text = _text(alias, length)
+        if not text or text.casefold() in seen:
+            continue
+        seen.add(text.casefold())
+        found.append(text)
+        if len(found) == count:
+            break
+    return found
+
+
+def merge_aliases(old: Iterable[Any], wanted: list[str]) -> list[Any]:
+    """Les alias à écrire : ceux voulus, et les valeurs spéciales de Home Assistant gardées.
+
+    `wanted` est déjà nettoyé. Un alias gardé reste à sa place, avec l'orthographe voulue ; un
+    alias nouveau vient à la fin ; une valeur spéciale (« le nom de l'entité ») reste où elle
+    était.
+    """
+    spelling = {alias.casefold(): alias for alias in wanted}
+    kept: list[Any] = []
+    seen: set[str] = set()
+    for alias in old:
+        if not isinstance(alias, str):
+            kept.append(alias)
+            continue
+        key = _text(alias, MAX_NAME).casefold()
+        if key in spelling and key not in seen:
+            seen.add(key)
+            kept.append(spelling[key])
+    return kept + [alias for alias in wanted if alias.casefold() not in seen]
+
+
 def entity_payload(
     entity_id: str,
     name: str,
     area: str | None,
     device_class: str | None,
     mode: str = "read",
+    aliases: Iterable[Any] = (),
+    area_aliases: Iterable[Any] = (),
 ) -> dict[str, Any]:
-    """Une entité partagée : nom, pièce, domaine, classe. Jamais ses attributs."""
+    """Une entité partagée : nom, pièce, domaine, classe, alias. Jamais ses attributs.
+
+    Les alias sont ceux d'Assist, de l'entité et de sa pièce : « le portillon » pour
+    « Portail ». Un serveur plus ancien les ignore.
+    """
+    clean_name = _text(name, MAX_NAME) or entity_id
+    clean_area = _text(area, MAX_NAME) if area else None
     return {
         "entity_id": entity_id,
-        "name": _text(name, MAX_NAME) or entity_id,
-        "area": _text(area, MAX_NAME) if area else None,
+        "name": clean_name,
+        "area": clean_area,
         "domain": entity_id.split(".", 1)[0],
         "device_class": device_class if isinstance(device_class, str) and device_class else None,
         "mode": mode,
+        "aliases": clean_aliases(aliases, clean_name),
+        "area_aliases": clean_aliases(area_aliases, clean_area) if clean_area else [],
     }
+
+
+def entities_reply(request_id: str, entities: list[dict[str, Any]]) -> str:
+    """La liste des entités ; si elle dépasse la taille d'une trame, sans les alias.
+
+    Le serveur ferme une liaison qui envoie une trame trop grande : mieux vaut une liste sans
+    alias, ceux des pièces d'abord, qu'une maison muette.
+    """
+    text = ok(request_id, entities=entities)
+    for keys in (("area_aliases",), ("area_aliases", "aliases")):
+        if len(text.encode()) <= MAX_MESSAGE_BYTES:
+            break
+        entities = [{**entity, **{key: [] for key in keys}} for entity in entities]
+        text = ok(request_id, entities=entities)
+    return text
 
 
 def pick_attributes(attributes: dict[str, Any]) -> dict[str, Any]:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -14,7 +15,7 @@ from homeassistant.setup import async_setup_component
 from homeassistant.util.uuid import random_uuid_hex
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.folonia import exposure
+from custom_components.folonia import exposure, settings
 from custom_components.folonia.const import (
     CONF_CONTROL,
     CONF_EXEMPT,
@@ -39,7 +40,7 @@ from .fake_folonia import LINK_ID, FakeFolonia
 pytestmark = pytest.mark.enable_socket
 
 FRONTEND_PANELS = "frontend_panels"
-MODULE_URL = "/folonia_static/0.5.0/folonia-panel.js"
+MODULE_URL = "/folonia_static/0.5.1/folonia-panel.js"
 
 
 async def _home(
@@ -48,10 +49,10 @@ async def _home(
     """Une maison reliée : lumière, serrure, porte du garage, capteur, et un interrupteur caché."""
     fake, url = folonia
     assert await async_setup_component(hass, "homeassistant", {})
-    kitchen = ar.async_get(hass).async_create("Cuisine")
+    kitchen = ar.async_get(hass).async_create("Cuisine", aliases={"Coin repas"})
     registry = er.async_get(hass)
     light = registry.async_get_or_create("light", "test", "cuisine", suggested_object_id="cuisine")
-    registry.async_update_entity(light.entity_id, area_id=kitchen.id)
+    registry.async_update_entity(light.entity_id, area_id=kitchen.id, aliases={"Plafonnier"})
     hass.states.async_set("light.cuisine", "on", {"friendly_name": "Lumière cuisine"})
     hass.states.async_set("lock.entree", "locked", {"friendly_name": "Serrure"})
     hass.states.async_set(
@@ -171,6 +172,7 @@ async def test_lecture_des_reglages(
         "entity_id": "cover.garage",
         "name": "Porte du garage",
         "area": None,
+        "area_id": None,
         "domain": "cover",
         "device_class": "garage",
         "kind": "volet ou porte",
@@ -182,8 +184,18 @@ async def test_lecture_des_reglages(
         "read": True,
         "control": True,
         "exempt": True,
+        # Pas au registre des entités : pas d'alias, et ils ne se modifient pas.
+        "aliases": [],
+        "aliases_editable": False,
+        "area_aliases": [],
     }
     assert light["area"] == "Cuisine" and light["state"] == "allumé"
+    assert (light["aliases"], light["aliases_editable"], light["area_aliases"]) == (
+        ["Plafonnier"],
+        True,
+        ["Coin repas"],
+    )
+    assert light["area_id"] == ar.async_get(hass).async_get_area_by_name("Cuisine").id
     assert (light["sensitive"], light["protectable"], light["controllable"]) == (
         False,
         False,
@@ -425,11 +437,13 @@ async def test_reserve_aux_administrateurs(
         {"type": "folonia/save", "read": ["light.cuisine"]},
         {"type": "folonia/secret", "code": None},
         {"type": "folonia/journal"},
+        {"type": "folonia/aliases", "entity_id": "light.cuisine", "aliases": ["lustre"]},
     ):
         reply = await _ws(client, **message)
         assert reply["success"] is False
         assert reply["error"]["code"] == "unauthorized"
     assert entry.options == options
+    assert er.async_get(hass).async_get("light.cuisine").aliases == {"Plafonnier"}
     assert await hass.config_entries.async_unload(entry.entry_id)
 
 
@@ -442,6 +456,87 @@ async def test_integration_dechargee(
     reply = await _ws(client, type="folonia/settings")
     assert reply["success"] is False
     assert reply["error"]["code"] == "not_loaded"
+
+
+# --- Les alias d'Assist, modifiés depuis la page (0.5.1) -------------------------------------
+
+
+async def test_alias_modifies_sans_redemarrage(
+    hass: HomeAssistant, folonia: tuple[FakeFolonia, str], hass_ws_client
+) -> None:
+    fake, _ = folonia
+    entry = await _home(
+        hass, folonia, {CONF_READ: ["light.cuisine"], CONF_CONTROL: [], CONF_EXEMPT: []}
+    )
+    client = await hass_ws_client(hass)
+    reply = await _ws(
+        client,
+        type="folonia/aliases",
+        entity_id="light.cuisine",
+        # Nettoyés, sans doublon ni le nom de l'appareil.
+        aliases=["  lustre ", "Lustre", "Lumière cuisine", "", "suspension\ndu  haut"],
+    )
+    assert reply["success"] is True
+    assert er.async_get(hass).async_get("light.cuisine").aliases == {"lustre", "suspension du haut"}
+    light = next(d for d in reply["result"]["devices"] if d["entity_id"] == "light.cuisine")
+    assert light["aliases"] == ["lustre", "suspension du haut"]
+    # Les choix enregistrés ne bougent pas ; la liaison a les alias à la liste suivante.
+    assert entry.options[CONF_READ] == ["light.cuisine"]
+    listed = await fake.request("list")
+    assert listed["entities"][0]["aliases"] == ["lustre", "suspension du haut"]
+    assert listed["entities"][0]["area_aliases"] == ["Coin repas"]
+    # Tout retirer.
+    reply = await _ws(client, type="folonia/aliases", entity_id="light.cuisine", aliases=[])
+    assert reply["success"] is True
+    assert er.async_get(hass).async_get("light.cuisine").aliases == set()
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_alias_refuses(
+    hass: HomeAssistant, folonia: tuple[FakeFolonia, str], hass_ws_client
+) -> None:
+    entry = await _home(hass, folonia)
+    client = await hass_ws_client(hass)
+    # Rien n'est cru de la page : non exposé, inconnu, sans registre, trop nombreux, trop long.
+    for entity_id, code in (
+        ("switch.cachee", "alias_not_allowed"),
+        ("light.inconnue", "alias_not_allowed"),
+        ("lock.entree", "alias_not_editable"),
+    ):
+        reply = await _ws(client, type="folonia/aliases", entity_id=entity_id, aliases=["x"])
+        assert reply["success"] is False
+        assert reply["error"]["code"] == code
+    for aliases in ([f"a{i}" for i in range(21)], ["x" * 101], "lustre"):
+        reply = await _ws(
+            client, type="folonia/aliases", entity_id="light.cuisine", aliases=aliases
+        )
+        assert reply["error"]["code"] == "invalid_format"
+    assert er.async_get(hass).async_get("light.cuisine").aliases == {"Plafonnier"}
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_alias_valeur_speciale_gardee(
+    hass: HomeAssistant, folonia: tuple[FakeFolonia, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Home Assistant 2026.4 et suivants : une liste ordonnée, avec « le nom de l'entité »."""
+    entry = await _home(hass, folonia)
+    computed_name = object()
+    written: list[list[Any]] = []
+
+    class Registry:
+        def async_get(self, entity_id: str) -> Any:
+            return SimpleNamespace(aliases=["Grille", computed_name, "portillon"])
+
+        def async_update_entity(self, entity_id: str, *, aliases: list[Any]) -> None:
+            written.append(aliases)
+
+    monkeypatch.setattr(settings, "er", SimpleNamespace(async_get=lambda hass: Registry()))
+    settings.apply_aliases(hass, "light.cuisine", ["portillon", "barrière"])
+    assert written == [[computed_name, "portillon", "barrière"]]
+    # Rien de changé : rien d'écrit.
+    settings.apply_aliases(hass, "light.cuisine", ["Grille", "portillon"])
+    assert len(written) == 1
+    assert await hass.config_entries.async_unload(entry.entry_id)
 
 
 # --- Les réglages d'avant 0.5.0, relus et enregistrés par la page ---------------------------

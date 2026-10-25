@@ -112,6 +112,8 @@ def test_ce_qui_sort_de_la_maison_est_borne() -> None:
         "domain": "cover",
         "device_class": "garage",
         "mode": "read",
+        "aliases": [],
+        "area_aliases": [],
     }
     state = protocol.state_payload(
         "light.cuisine",
@@ -128,3 +130,72 @@ def test_ce_qui_sort_de_la_maison_est_borne() -> None:
     )
     assert state["attributes"] == {"brightness": 204, "hvac_action": "x" * 64}
     assert protocol.entity_payload("light.x", "n" * 300, None, None)["name"] == "n" * 100
+
+
+#: La valeur spéciale de Home Assistant 2026.4 et suivants, « le nom de l'entité » : pas un texte.
+COMPUTED_NAME = object()
+
+
+def test_alias_ecrits_seulement() -> None:
+    # Jusqu'à 2026.3 : un ensemble, rendu trié. Depuis 2026.4 : une liste ordonnée, avec la
+    # valeur spéciale, jamais rendue comme un texte.
+    assert protocol.alias_texts({"portillon", "Grille"}) == ["Grille", "portillon"]
+    assert protocol.alias_texts([COMPUTED_NAME, "portillon", None, "grille"]) == [
+        "portillon",
+        "grille",
+    ]
+    assert protocol.alias_texts([COMPUTED_NAME]) == []
+
+
+def test_alias_nettoyes_et_bornes() -> None:
+    entity = protocol.entity_payload(
+        "cover.portail",
+        "Portail",
+        "Jardin",
+        "gate",
+        aliases=[COMPUTED_NAME, "le\nportillon", "Portillon", "PORTAIL", "", "   ", "a" * 300],
+        area_aliases={"jardin", "Dehors"},
+    )
+    # Une ligne chacun, sans doublon, sans le nom ni la pièce eux-mêmes, longueur bornée.
+    assert entity["aliases"] == ["le portillon", "Portillon", "a" * protocol.MAX_ALIAS]
+    assert entity["area_aliases"] == ["Dehors"]
+    many = protocol.entity_payload("light.x", "X", None, None, aliases=[f"a{i}" for i in range(30)])
+    assert many["aliases"] == [f"a{i}" for i in range(protocol.MAX_ALIASES)]
+    # Sans pièce, pas d'alias de pièce.
+    assert (
+        protocol.entity_payload("light.x", "X", None, None, area_aliases={"y"})["area_aliases"]
+        == []
+    )
+
+
+def test_alias_ecrits_avec_la_valeur_speciale_gardee() -> None:
+    old = ["Grille", COMPUTED_NAME, "portillon", "entrée"]
+    # Retirer « entrée », garder les autres (orthographe voulue), ajouter « barrière » à la fin.
+    merged = protocol.merge_aliases(old, ["Portillon", "barrière", "grille"])
+    assert merged == ["grille", COMPUTED_NAME, "Portillon", "barrière"]
+    # Tout retirer garde la valeur spéciale, seule.
+    assert protocol.merge_aliases(old, []) == [COMPUTED_NAME]
+    assert protocol.merge_aliases([], ["a"]) == ["a"]
+
+
+def test_liste_trop_grande_sans_alias() -> None:
+    long = "é" * protocol.MAX_ALIAS
+    entities = [
+        protocol.entity_payload(
+            f"light.lampe_{i}",
+            "L" * protocol.MAX_NAME,
+            "P" * protocol.MAX_NAME,
+            None,
+            aliases=[f"{j}{long}" for j in range(protocol.MAX_ALIASES)],
+            area_aliases=[f"{j}{long}" for j in range(protocol.MAX_ALIASES)],
+        )
+        for i in range(protocol.MAX_ENTITIES)
+    ]
+    text = protocol.entities_reply("1", entities)
+    assert len(text.encode()) <= protocol.MAX_MESSAGE_BYTES
+    sent = json.loads(text)["entities"]
+    assert len(sent) == protocol.MAX_ENTITIES
+    assert all(e["area_aliases"] == [] for e in sent)
+    # Une liste ordinaire passe telle quelle.
+    small = [protocol.entity_payload("light.x", "X", "Y", None, aliases=["z"], area_aliases=["w"])]
+    assert json.loads(protocol.entities_reply("2", small))["entities"] == small

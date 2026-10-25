@@ -3,7 +3,8 @@
 Réservées aux administrateurs. La page ne décide de rien : ce qu'elle envoie est recoupé ici
 avec la liste permise (`settings`), puis enregistré dans les options de l'entrée, que la
 liaison applique dès la requête suivante. Aucune empreinte de secret n'est jamais rendue :
-seulement « réglé » ou non.
+seulement « réglé » ou non. Les alias d'un appareil, eux, sont ceux d'Assist : écrits dans le
+registre des entités de Home Assistant, relus par la liaison à chaque liste.
 """
 
 from __future__ import annotations
@@ -20,12 +21,14 @@ from homeassistant.helpers import entity_registry as er
 from . import exposure, settings
 from .const import CONF_LOCK_HASH, CONF_PHRASE_HASH, DOMAIN, LOCK_FAILURES, VERSION
 from .link import FoloniaLink
-from .protocol import MAX_ENTITIES
+from .protocol import MAX_ALIASES_SET, MAX_ENTITIES, MAX_NAME
 
 #: Une liste d'identifiants d'entités, telle que la page l'envoie ; recoupée ensuite.
 _ENTITY_IDS = vol.All([str], vol.Length(max=10_000))
 #: Un secret à régler (texte) ou à effacer (`None`).
 _SECRET = vol.Any(None, vol.All(str, vol.Length(max=256)))
+#: Les alias voulus pour un appareil, tels que la page les envoie ; nettoyés ensuite.
+_ALIASES = vol.All([vol.All(str, vol.Length(max=MAX_NAME))], vol.Length(max=MAX_ALIASES_SET))
 
 
 @callback
@@ -34,6 +37,7 @@ def async_register(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_save)
     websocket_api.async_register_command(hass, ws_secret)
     websocket_api.async_register_command(hass, ws_journal)
+    websocket_api.async_register_command(hass, ws_aliases)
 
 
 @callback
@@ -204,6 +208,35 @@ def ws_journal(
     connection.send_result(msg["id"], {"entries": lines})
 
 
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): "folonia/aliases",
+        vol.Required("entity_id"): vol.All(str, vol.Length(max=255)),
+        vol.Required("aliases"): _ALIASES,
+    }
+)
+@websocket_api.require_admin
+@callback
+def ws_aliases(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Remplace les alias d'Assist d'un appareil que la page propose, puis rend la page.
+
+    Écrits dans le registre des entités : Assist et Oscar les ont aussitôt, la liaison relit
+    la liste à chaque appel.
+    """
+    entry = _entry(hass)
+    if entry is None:
+        _not_loaded(connection, msg)
+        return
+    try:
+        settings.apply_aliases(hass, msg["entity_id"], msg["aliases"])
+    except settings.SettingsError as err:
+        connection.send_error(msg["id"], err.code, ERRORS[err.code])
+        return
+    connection.send_result(msg["id"], _payload(hass, entry))
+
+
 #: Les messages des refus, tels que la page les montre si elle ne les connaît pas.
 ERRORS = {
     "invalid_lock_code": "Le code est fait de quatre à huit chiffres.",
@@ -215,5 +248,12 @@ ERRORS = {
         "Choisissez un code ou un mot de passe : une protection cochée porte sur un appareil "
         "partagé (serrure, alarme, portail, porte de garage, présence, porte ou fenêtre). "
         "Sinon, décochez-la, ou laissez l'appareil sans code."
+    ),
+    "alias_not_allowed": (
+        "Cet appareil n'est pas exposé aux assistants vocaux : ses alias ne se modifient pas ici."
+    ),
+    "alias_not_editable": (
+        "Cet appareil n'a pas d'identifiant unique dans Home Assistant : ses alias ne se "
+        "modifient pas."
     ),
 }

@@ -50,10 +50,13 @@ async def linked(
     """Une maison reliée, qui montre la lumière de la cuisine et la porte du garage."""
     fake, url = folonia
     assert await async_setup_component(hass, "homeassistant", {})
-    kitchen = ar.async_get(hass).async_create("Cuisine")
+    kitchen = ar.async_get(hass).async_create("Cuisine", aliases={"Coin repas"})
     registry = er.async_get(hass)
     light = registry.async_get_or_create("light", "test", "cuisine", suggested_object_id="cuisine")
-    registry.async_update_entity(light.entity_id, area_id=kitchen.id)
+    # Les alias d'Assist ; celui qui redit le nom ne sert à rien et ne sort pas.
+    registry.async_update_entity(
+        light.entity_id, area_id=kitchen.id, aliases={"Plafonnier", "lumière  CUISINE"}
+    )
 
     hass.states.async_set(
         "light.cuisine", "on", {"friendly_name": "Lumière cuisine", "brightness": 204}
@@ -110,6 +113,8 @@ async def test_ne_montre_que_ce_qui_est_coche_et_expose(
             "domain": "light",
             "device_class": None,
             "mode": "read",
+            "aliases": ["Plafonnier"],
+            "area_aliases": ["Coin repas"],
         },
         {
             "entity_id": "cover.garage",
@@ -118,6 +123,8 @@ async def test_ne_montre_que_ce_qui_est_coche_et_expose(
             "domain": "cover",
             "device_class": "garage",
             "mode": "read",
+            "aliases": [],
+            "area_aliases": [],
         },
     ]
 
@@ -147,6 +154,22 @@ async def test_ne_montre_que_ce_qui_est_coche_et_expose(
     assert ("light.cuisine", "a lu l'état : on") in messages
     assert all(e.data["name"] == "Oscar" for e in logbook)
     assert not any(entity == "lock.entree" for entity, _ in messages)
+
+
+async def test_alias_relus_a_chaque_liste(
+    hass: HomeAssistant, linked: tuple[FakeFolonia, MockConfigEntry, list[Event]]
+) -> None:
+    fake, _, _ = linked
+    registry = er.async_get(hass)
+    # Changés dans Home Assistant (ou dans la page) : Oscar les a à la liste suivante.
+    registry.async_update_entity("light.cuisine", aliases={"Lustre", "Suspension"})
+    areas = ar.async_get(hass)
+    kitchen = areas.async_get_area_by_name("Cuisine")
+    assert kitchen is not None
+    areas.async_update(kitchen.id, aliases=set())
+    listed = await fake.request("list")
+    light = listed["entities"][0]
+    assert (light["aliases"], light["area_aliases"]) == (["Lustre", "Suspension"], [])
 
 
 async def test_commande_sur_les_seuls_appareils_coches_en_commande(
