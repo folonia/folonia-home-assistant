@@ -124,7 +124,11 @@ class FoloniaConfigFlow(ConfigFlow, domain=DOMAIN):
                 entry.data.get(CONF_VERIFY_SSL, True),
             )
             if data is not None:
-                return self.async_update_reload_and_abort(entry, data_updates=data)
+                # Pas `async_update_reload_and_abort` : refusé dès Home Assistant 2026.12 à une
+                # entrée qui a un écouteur de mises à jour, ce que sont nos options.
+                self.hass.config_entries.async_update_entry(entry, data={**entry.data, **data})
+                self.hass.config_entries.async_schedule_reload(entry.entry_id)
+                return self.async_abort(reason="reauth_successful")
         return self.async_show_form(
             step_id="reauth_confirm",
             data_schema=vol.Schema({vol.Required(CONF_CODE): str}),

@@ -9,6 +9,7 @@ import pytest
 from homeassistant.components.homeassistant.exposed_entities import async_expose_entity
 from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
 from homeassistant.core import Event, HomeAssistant
+from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
@@ -414,6 +415,34 @@ async def test_deliee_par_folonia_demande_un_nouveau_code(
     flows = hass.config_entries.flow.async_progress_by_handler(DOMAIN)
     assert [flow["context"]["source"] for flow in flows] == [SOURCE_REAUTH]
     assert entry.runtime_data.stopped_reason == "unlinked"
+
+
+async def test_nouveau_code_apres_deliage_garde_les_choix(
+    hass: HomeAssistant,
+    linked: tuple[FakeFolonia, MockConfigEntry, list[Event]],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    fake, entry, _ = linked
+    options = dict(entry.options)
+    await fake.close_link(4001)
+    await fake.disconnected.wait()
+    for _ in range(100):
+        if entry.runtime_data.stopped_reason is not None:
+            break
+        await asyncio.sleep(0.01)
+    await hass.async_block_till_done()
+    flow = hass.config_entries.flow.async_progress_by_handler(DOMAIN)[0]
+
+    fake.connected.clear()
+    fake.codes["ABCD2345"] = "6f9c1d2e-0a4b-4c5d-8e7f-001122334466"
+    result = await hass.config_entries.flow.async_configure(flow["flow_id"], {"code": "ABCD-2345"})
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reauth_successful"
+    await hass.async_block_till_done()
+    await asyncio.wait_for(fake.connected.wait(), 5)
+    assert entry.options == options
+    # Refusé dès Home Assistant 2026.12 : un rechargement forcé sur une entrée avec écouteur.
+    assert "update listener" not in caplog.text
 
 
 async def test_retirer_l_integration_delie_la_maison(
