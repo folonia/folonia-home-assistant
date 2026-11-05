@@ -20,6 +20,7 @@ from custom_components.folonia.const import (
     CONF_SECRET,
     CONF_URL,
     CONF_VERIFY_SSL,
+    DEFAULT_URL,
     DOMAIN,
     TRIAL_URL,
     VERSION,
@@ -108,6 +109,11 @@ async def test_code_refuse_et_service_injoignable(
         result["flow_id"], _saisie("K7QM4XT2", "pas une adresse")
     )
     assert result["errors"] == {"base": "invalid_url"}
+
+
+def test_le_service_par_defaut_est_celui_de_l_api() -> None:
+    # folonia.fr est le site public : il répond 404 à /v1/*, l'API est sur compte.folonia.fr.
+    assert DEFAULT_URL == "https://compte.folonia.fr"
 
 
 async def test_sans_section_avancee_le_service_de_folonia(
