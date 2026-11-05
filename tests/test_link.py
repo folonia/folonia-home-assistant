@@ -29,6 +29,7 @@ from custom_components.folonia.const import (
     CONF_URL,
     CONF_VERIFY_SSL,
     DOMAIN,
+    STATE_SETTLE_DEADLINE,
 )
 from custom_components.folonia.voicelock import hash_code
 
@@ -423,6 +424,59 @@ async def test_retirer_l_integration_delie_la_maison(
     assert await hass.config_entries.async_remove(entry.entry_id)
     await hass.async_block_till_done()
     assert fake.unlinked == [secret]
+
+
+async def test_commande_attend_l_etat_de_l_appareil(
+    hass: HomeAssistant, linked: tuple[FakeFolonia, MockConfigEntry, list[Event]]
+) -> None:
+    """Essai du 5 novembre 2026 : « indiqué éteint, mais l'état affiché dit encore allumé »."""
+    fake, entry, _ = linked
+    hass.config_entries.async_update_entry(
+        entry, options={**entry.options, CONF_CONTROL: ["light.cuisine", "lock.entree"]}
+    )
+    await hass.async_block_till_done()
+
+    async def plus_tard(call) -> None:
+        # Le service répond tout de suite ; l'appareil, un instant après.
+        hass.loop.call_later(
+            0.15,
+            hass.states.async_set,
+            "light.cuisine",
+            "off",
+            {"friendly_name": "Lumière cuisine"},
+        )
+
+    async def sans_effet(call) -> None:
+        pass
+
+    hass.services.async_register("light", "turn_off", plus_tard)
+    done = await fake.request(
+        "command", entity_id="light.cuisine", service="light.turn_off", data={}
+    )
+    assert done["ok"] is True
+    assert done["result"]["state"] == "off"
+
+    # Déjà dans cet état, ou muet : la réponse vient quand même, à la limite de l'attente.
+    hass.services.async_register("light", "turn_on", sans_effet)
+    before = hass.loop.time()
+    done = await fake.request(
+        "command", entity_id="light.cuisine", service="light.turn_on", data={}
+    )
+    assert done["ok"] is True
+    assert done["result"]["state"] == "off"
+    assert hass.loop.time() - before < STATE_SETTLE_DEADLINE + 0.5
+
+    # En route, puis arrivé : c'est l'arrivée qui est dite, si elle vient dans l'attente.
+    async def en_route(call) -> None:
+        hass.states.async_set("lock.entree", "locking", {"friendly_name": "Serrure"})
+        hass.loop.call_later(
+            0.15, hass.states.async_set, "lock.entree", "locked", {"friendly_name": "Serrure"}
+        )
+
+    hass.services.async_register("lock", "lock", en_route)
+    done = await fake.request("command", entity_id="lock.entree", service="lock.lock", data={})
+    assert done["ok"] is True
+    assert hass.states.get("lock.entree").state == "locked"
 
 
 async def _cover_services(hass: HomeAssistant) -> list[str]:

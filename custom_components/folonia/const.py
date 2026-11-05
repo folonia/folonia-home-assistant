@@ -108,6 +108,12 @@ LOCK_FAILURES = 5
 LOCK_WINDOW_SECONDS = 24 * 3600
 #: Un service Home Assistant qui ne répond pas dans ce délai : la commande est dite échouée.
 SERVICE_TIMEOUT = 10
+#: Après une commande, l'attente de l'état, en secondes : la réponse de l'appareil, puis une limite
+#: depuis le début de la commande, sous ce que le service Folonia attend de la maison (2,5 s).
+STATE_SETTLE = 1.0
+STATE_SETTLE_DEADLINE = 2.0
+#: Un appareil dans cet état est en route : son état final peut suivre.
+STATES_IN_TRANSIT = frozenset({"locking", "unlocking", "opening", "closing"})
 
 #: Lignes gardées en mémoire pour le diagnostic, en plus du journal de bord.
 JOURNAL_SIZE = 200

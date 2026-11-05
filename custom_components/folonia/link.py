@@ -18,7 +18,7 @@ from typing import Any
 import aiohttp
 from homeassistant.components import persistent_notification
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import HomeAssistant, State, callback
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.storage import Store
@@ -36,6 +36,9 @@ from .const import (
     SERVICE_DATA,
     SERVICE_TIMEOUT,
     SERVICES,
+    STATE_SETTLE,
+    STATE_SETTLE_DEADLINE,
+    STATES_IN_TRANSIT,
     VERSION,
 )
 from .journal import Journal
@@ -342,6 +345,7 @@ class FoloniaLink:
             verdict = await self._verify(request.code, entity_id)
             if verdict != "ok":
                 return protocol.error(request.id, verdict)
+        started = self.hass.loop.time()
         try:
             async with asyncio.timeout(SERVICE_TIMEOUT):
                 await self.hass.services.async_call(domain, service, data, blocking=True)
@@ -349,7 +353,7 @@ class FoloniaLink:
             _LOGGER.warning("commande Folonia refusée par Home Assistant : %s", err)
             self.journal.record(f"commande refusée : {service}", entity_id, refused=True)
             return protocol.error(request.id, "failed")
-        after = self.hass.states.get(entity_id)
+        after = await self._settled_state(state, started)
         self.journal.record(
             f"a commandé : {service} → {after.state if after else 'inconnu'}", entity_id
         )
@@ -358,6 +362,23 @@ class FoloniaLink:
         if after is None or hidden:
             return protocol.ok(request.id)
         return protocol.ok(request.id, result=exposure.snapshot(after))
+
+    async def _settled_state(self, before: State, started: float) -> State | None:
+        """L'état après une commande : le service répond souvent avant l'appareil (Zigbee, MQTT).
+
+        Lu trop tôt, l'état dit encore le contraire de ce qui vient d'être fait, et Oscar le répète.
+        L'attente est bornée : un appareil muet, ou déjà dans cet état, rend ce qu'il a.
+        """
+        now = self.hass.loop.time()
+        deadline = min(now + STATE_SETTLE, started + STATE_SETTLE_DEADLINE)
+        while True:
+            after = self.hass.states.get(before.entity_id)
+            settled = after is None or (
+                after.last_updated != before.last_updated and after.state not in STATES_IN_TRANSIT
+            )
+            if settled or self.hass.loop.time() >= deadline:
+                return after
+            await asyncio.sleep(0.05)
 
     async def _notify_locked(self) -> None:
         """Verrou bloqué : l'utilisateur en est averti dans Home Assistant."""
