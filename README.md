@@ -5,7 +5,7 @@ salon ? », « Éteins la cuisine. » Oscar, l’assistant qu’on appelle de
 [Folonia](https://folonia.fr), lit et commande les seuls appareils que **vous** choisissez, mains
 libres et sans application. Aucun port ouvert chez vous, aucun jeton de Home Assistant qui sort.
 
-- **Essai gratuit** : [30 minutes à utiliser sous 14 jours](https://compte.folonia.fr/essai-long),
+- **Essai gratuit** : [30 minutes à utiliser sous 14 jours](https://compte.folonia.fr/essai-long?utm_source=marketplace),
   sans carte, maison comprise (mobiles français, une fois par numéro).
 - **Ensuite** : un [abonnement Folonia](https://folonia.fr/#tarifs), à partir de 9,99 € par mois,
   sans engagement. L’intégration elle-même est gratuite et sous licence Apache 2.0.
@@ -67,7 +67,7 @@ redémarrez Home Assistant.
 
 1. Sur [folonia.fr](https://folonia.fr), **Votre compte**, section **Maison** : **Obtenir un
    code** (dix minutes, une seule fois). Pas encore de compte ?
-   [Prenez l’essai de 30 minutes](https://compte.folonia.fr/essai-long).
+   [Prenez l’essai de 30 minutes](https://compte.folonia.fr/essai-long?utm_source=marketplace).
 2. Dans Home Assistant : **Paramètres**, **Appareils et services**, **Ajouter une
    intégration**, **Folonia**, puis saisissez le code.
 3. L’appareil **Folonia** apparaît, avec l’interrupteur **Accès d’Oscar** et le capteur
