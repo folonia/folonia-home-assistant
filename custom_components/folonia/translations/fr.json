@@ -20,7 +20,7 @@
       },
       "reauth_confirm": {
         "title": "Relier de nouveau votre maison",
-        "description": "Folonia a délié cette maison (depuis votre espace client, ou par un nouvel appariement). Pour la relier, obtenez un nouveau code dans votre espace et saisissez-le ici.",
+        "description": "Folonia a délié cette maison (depuis votre espace client, par un nouvel appariement, ou 30 jours après la fin d’un essai). Pour la relier, obtenez un nouveau code dans votre espace et saisissez-le ici.",
         "data": {
           "code": "Code"
         }

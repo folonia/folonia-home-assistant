@@ -213,7 +213,7 @@ sans secret ni code.
   vos commandes. Un nom peut citer quelqu’un, et une présence dire où se trouve une personne.
 - **Chez les prestataires** : OpenAI reçoit ce que vous dites, les noms et les états lus, et peut les
   garder jusqu’à 30 jours ; Microsoft lit à voix haute ce qu’Oscar en dit. Un code ou un mot de passe
-  dit à voix haute passe aussi par OpenAI ; un code tapé au clavier, non : il ne passe que par Folonia,
+  dit à voix haute passe aussi par OpenAI ; un code tapé au clavier, non : il ne passe que par l’opérateur téléphonique et par Folonia,
   sans être enregistré.
 - **Ce que Folonia garde** : la liaison (une empreinte de son secret, sa date), jusqu’à ce que vous
   la déliiez, et la preuve de votre acceptation des conditions.

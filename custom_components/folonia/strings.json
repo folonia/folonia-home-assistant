@@ -20,7 +20,7 @@
       },
       "reauth_confirm": {
         "title": "Link your home again",
-        "description": "Folonia unlinked this home (from your account, or by a newer pairing). Get a new code in your account and enter it here.",
+        "description": "Folonia unlinked this home (from your account, by a newer pairing, or 30 days after a trial ended). Get a new code in your account and enter it here.",
         "data": {
           "code": "Code"
         }

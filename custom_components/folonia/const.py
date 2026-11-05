@@ -35,7 +35,7 @@ CONF_PHRASE_SALT = "phrase_salt"
 CONF_LOCK_READ = "lock_read"
 DEFAULT_LOCK_READ = True
 #: Code pour déverrouiller, désarmer, ouvrir : coché par défaut, y compris pour une installation
-#: d'avant la case (0.3.0) ; décochable, sous la responsabilité de l'utilisateur.
+#: d'avant la case (0.3.0) ; décochable, en connaissance de cause.
 CONF_LOCK_OPEN = "lock_open"
 DEFAULT_LOCK_OPEN = True
 #: Appareils partagés lus et commandés sans code, même cases cochées. Vide par défaut.
