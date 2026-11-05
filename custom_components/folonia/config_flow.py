@@ -9,6 +9,7 @@ import aiohttp
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResult, OptionsFlow
 from homeassistant.core import callback
+from homeassistant.data_entry_flow import section
 
 from .api import PairingFailed, PairingRateLimited, PairingRefused, async_pair
 from .const import (
@@ -27,11 +28,14 @@ from .const import (
     DEFAULT_URL,
     DOMAIN,
     PANEL_URL,
+    TRIAL_URL,
 )
 from .protocol import base_url, normalize_code
 
 #: La page Folonia, où sont les réglages.
 PANEL_PATH = f"/{PANEL_URL}"
+#: La section repliée du formulaire : l'adresse du service, pour un laboratoire.
+SECTION_ADVANCED = "advanced"
 
 
 class FoloniaConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -44,7 +48,7 @@ class FoloniaConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> tuple[dict[str, Any] | None, dict[str, str]]:
         base = base_url(url_text)
         if base is None:
-            return None, {CONF_URL: "invalid_url"}
+            return None, {"base": "invalid_url"}
         code = normalize_code(code_text)
         if code is None:
             return None, {CONF_CODE: "invalid_code"}
@@ -66,10 +70,11 @@ class FoloniaConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
         if user_input is not None:
+            advanced = user_input.get(SECTION_ADVANCED, {})
             data, errors = await self._pair(
                 user_input[CONF_CODE],
-                user_input.get(CONF_URL, DEFAULT_URL),
-                user_input.get(CONF_VERIFY_SSL, True),
+                advanced.get(CONF_URL, DEFAULT_URL),
+                advanced.get(CONF_VERIFY_SSL, True),
             )
             if data is not None:
                 return self.async_create_entry(
@@ -83,11 +88,25 @@ class FoloniaConfigFlow(ConfigFlow, domain=DOMAIN):
                         CONF_EXEMPT: [],
                     },
                 )
-        fields: dict[Any, Any] = {vol.Required(CONF_CODE): str}
-        if self.show_advanced_options:
-            fields[vol.Optional(CONF_URL, default=DEFAULT_URL)] = str
-            fields[vol.Optional(CONF_VERIFY_SSL, default=True)] = bool
-        return self.async_show_form(step_id="user", data_schema=vol.Schema(fields), errors=errors)
+        return self.async_show_form(
+            step_id="user",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_CODE): str,
+                    vol.Optional(SECTION_ADVANCED): section(
+                        vol.Schema(
+                            {
+                                vol.Optional(CONF_URL, default=DEFAULT_URL): str,
+                                vol.Optional(CONF_VERIFY_SSL, default=True): bool,
+                            }
+                        ),
+                        {"collapsed": True},
+                    ),
+                }
+            ),
+            errors=errors,
+            description_placeholders={"trial_url": TRIAL_URL},
+        )
 
     async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> ConfigFlowResult:
         """Le service a délié cette maison : un nouveau code la relie de nouveau."""

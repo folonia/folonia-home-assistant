@@ -330,6 +330,7 @@ const STYLE = `
     .head { font-size: 11px; letter-spacing: 0; text-transform: none; line-height: 1.2; column-gap: 6px; }
     .head span:not(:first-child) { font-size: 10px; }
     .head span:not(:first-child) { text-align: center; }
+    .names b { white-space: normal; }
     .names small { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
     .names .aka { display: block; white-space: nowrap; }
     .savebar p { font-size: 13px; }

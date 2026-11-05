@@ -1,3 +1,3 @@
-# Banc de test de Home Assistant (cœur 2026.2.3), épinglé : la CI rejoue ce qui a été essayé.
-pytest-homeassistant-custom-component==0.13.316
+# Banc de test de Home Assistant (cœur 2026.10.4), épinglé : la CI rejoue ce qui a été essayé.
+pytest-homeassistant-custom-component==0.13.375
 ruff==0.16.10

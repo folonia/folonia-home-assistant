@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 DOMAIN = "folonia"
-VERSION = "0.5.1"
+VERSION = "0.5.2"
 
 #: La page Folonia de la barre latérale : adresse, titre, icône.
 PANEL_URL = "folonia"
@@ -12,6 +12,8 @@ PANEL_ICON = "mdi:home-account"
 
 #: Le service Folonia ; modifiable en mode avancé (laboratoire).
 DEFAULT_URL = "https://folonia.fr"
+#: L'essai de 30 minutes, pour qui n'a pas encore de compte.
+TRIAL_URL = "https://compte.folonia.fr/essai-long"
 
 CONF_CODE = "code"
 CONF_URL = "url"

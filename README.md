@@ -1,11 +1,23 @@
 # Folonia pour Home Assistant
 
-Au téléphone, demandez à Oscar si la porte du garage est fermée, quelle température il fait au
-salon, ou d’éteindre la lumière de la cuisine. Cette intégration relie votre Home Assistant à
-votre abonnement [Folonia](https://folonia.fr) : Oscar lit et commande les seuls appareils que
-**vous** choisissez.
+**Votre maison répond au téléphone.** « J’ai bien fermé le garage ? », « Il fait combien dans le
+salon ? », « Éteins la cuisine. » Oscar, l’assistant qu’on appelle de
+[Folonia](https://folonia.fr), lit et commande les seuls appareils que **vous** choisissez, mains
+libres et sans application. Aucun port ouvert chez vous, aucun jeton de Home Assistant qui sort.
 
-[![Ouvrir dans HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=folonia&repository=folonia-home-assistant&category=integration)
+- **Essai gratuit** : [30 minutes à utiliser sous 14 jours](https://compte.folonia.fr/essai-long),
+  sans carte, maison comprise (mobiles français, une fois par numéro).
+- **Ensuite** : un [abonnement Folonia](https://folonia.fr/#tarifs), à partir de 9,99 € par mois,
+  sans engagement. L’intégration elle-même est gratuite et sous licence Apache 2.0.
+- **Pour qui** : Folonia est proposé aux personnes qui résident en France. *Folonia is sold in
+  France only; [summary in English](#in-english) below.*
+
+<!-- ha-marketplace:exclude-start -->
+[![Ouvrir dans la Marketplace de Home Assistant](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=folonia&repository=folonia-home-assistant&category=integration)
+[![Ajouter l’intégration Folonia](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=folonia)
+<!-- ha-marketplace:exclude-end -->
+
+![La page Folonia : les appareils partagés, ce qu’Oscar peut lire et commander](https://raw.githubusercontent.com/folonia/folonia-home-assistant/main/docs/images/page-appareils.png)
 
 ## Ce qu’Oscar peut faire
 
@@ -15,20 +27,65 @@ votre abonnement [Folonia](https://folonia.fr) : Oscar lit et commande les seuls
   verrouiller, armer, régler une température, une position ou une luminosité, lancer une scène.
 - Rien d’autre : il ne voit ni ne commande ce que vous n’avez pas coché.
 
-## Le code ou le mot de passe
+## Vos garanties
 
-Folonia, c’est d’abord le mains libres : le secret se dit à voix haute. Deux secrets possibles,
-choisis dans la page Folonia (**Code et protections**) ; l’un ou l’autre suffit :
+- **Votre maison n’expose rien.** Home Assistant ouvre une connexion sortante vers Folonia :
+  aucun port ouvert, aucune redirection de routeur.
+- **Aucun jeton de Home Assistant ne sort.** La liaison est appariée une fois par un code de
+  huit caractères, et ne permet que les questions et commandes prévues.
+- **Par défaut, Oscar ne voit rien.** Vous choisissez un appareil à la fois, parmi ceux déjà
+  exposés aux assistants vocaux. La règle est appliquée chez vous, à chaque demande.
+- **Tout est au journal de bord.** Chaque lecture, chaque commande, chaque code refusé, jamais
+  le code ni le mot de passe lui-même.
+- **Un interrupteur coupe tout.** « Accès d’Oscar » éteint : la liaison est fermée, rien ne
+  sort ; Oscar dit que l’accès est coupé.
+- **Rien n’est conservé chez Folonia.** Ce qu’Oscar lit sert à répondre pendant l’appel, puis
+  est oublié.
 
-- un **code chiffré** de quatre à huit chiffres, dit à voix haute ou **tapé sur le clavier du
-  téléphone** (puis dièse) si vous n’êtes pas seul ;
-- un **mot de passe parlé** : un mot ou une courte phrase, par exemple « dragon rouge ».
-  Majuscules, accents et ponctuation ne comptent pas. Quatre lettres au moins ; six lettres ou
-  deux mots sont conseillés.
+## Installer
 
-Ils sont vérifiés **chez vous** : seule leur empreinte est gardée dans Home Assistant, chacun se
-règle et s’efface séparément. Folonia ne les enregistre pas : ce que vous dites ou tapez est
-transmis avec la demande, puis oublié.
+Il faut Home Assistant 2026.2 ou plus récent et un compte Folonia (essai ou abonnement).
+
+**Depuis Home Assistant 2026.11, avec la Marketplace :**
+
+1. **Paramètres**, **Marketplace**, cherchez **Folonia**, puis **Installer**. Tant que Folonia
+   n’est pas au catalogue, touchez le bouton **Ouvrir dans la Marketplace** ci-dessus, ou ajoutez
+   l’adresse `https://github.com/folonia/folonia-home-assistant` depuis **Ajouter grâce à un lien
+   GitHub** : Home Assistant demande alors une connexion GitHub, qui ne lit que des données
+   publiques.
+2. L’installation mène directement au formulaire d’ajout : aucun redémarrage la première fois.
+
+La Marketplace rappelle, à juste titre, que les extensions de la communauté ne sont ni testées ni
+auditées par le projet Home Assistant : lisez [Vos garanties](#vos-garanties) et
+[Données](#données) pour savoir ce que celle-ci fait.
+
+**Avant Home Assistant 2026.11, avec [HACS](https://hacs.xyz) :** menu (les trois points),
+**Dépôts personnalisés**, même adresse, catégorie **Intégration**. Installez **Folonia**, puis
+redémarrez Home Assistant.
+
+## Relier votre maison
+
+1. Sur [folonia.fr](https://folonia.fr), **Votre compte**, section **Maison** : **Obtenir un
+   code** (dix minutes, une seule fois). Pas encore de compte ?
+   [Prenez l’essai de 30 minutes](https://compte.folonia.fr/essai-long).
+2. Dans Home Assistant : **Paramètres**, **Appareils et services**, **Ajouter une
+   intégration**, **Folonia**, puis saisissez le code.
+3. L’appareil **Folonia** apparaît, avec l’interrupteur **Accès d’Oscar** et le capteur
+   **Liaison**.
+
+![Le formulaire d’ajout : le code de votre espace Folonia](https://raw.githubusercontent.com/folonia/folonia-home-assistant/main/docs/images/formulaire.png)
+
+## Choisir ce qu’Oscar lit et commande
+
+1. Exposez les appareils voulus aux assistants vocaux : **Paramètres**, **Assistants vocaux**,
+   onglet **Exposer**.
+2. Dans la page **Folonia** de la barre latérale, onglet **Appareils** : cochez ce qu’Oscar
+   peut lire, puis ce qu’il peut commander, et **Enregistrer** ; onglet **Code et protections** :
+   choisissez un code, un mot de passe, ou les deux.
+
+Pourquoi deux étapes ? Home Assistant expose d’office certains appareils nouveaux ; sans le
+choix propre à Folonia, Oscar en verrait plus que vous ne l’avez décidé. Retirer l’exposition
+retire aussi l’appareil à Oscar.
 
 ## La page Folonia
 
@@ -36,6 +93,8 @@ Tout se règle dans la page **Folonia** de la barre latérale de Home Assistant,
 administrateurs. Pour l’ouvrir : **Folonia** dans la barre latérale, ou **Paramètres**,
 **Appareils et services**, **Folonia**, **Configurer**, ou l’adresse `/folonia` de votre Home
 Assistant. Elle suit le thème clair ou sombre de Home Assistant et se lit sur téléphone.
+
+<img src="https://raw.githubusercontent.com/folonia/folonia-home-assistant/main/docs/images/page-telephone.png" alt="La page Folonia sur un téléphone, en thème sombre" width="320">
 
 - **Appareils** : l’interrupteur **Accès d’Oscar**, un résumé (appareils partagés, commandés,
   sans code), puis la liste des appareils exposés aux assistants vocaux, avec recherche (nom,
@@ -81,51 +140,22 @@ responsabilité.
 - Une installation plus ancienne garde son code et ses choix ; les nouveaux réglages y prennent
   leur valeur par défaut. Depuis la version 0.5.0, **Configurer** mène à la page Folonia.
 
-## Vos garanties
+## Le code ou le mot de passe
 
-- **Votre maison n’expose rien.** Home Assistant ouvre une connexion sortante vers Folonia :
-  aucun port ouvert, aucune redirection de routeur.
-- **Aucun jeton de Home Assistant ne sort.** La liaison est appariée une fois par un code de
-  huit caractères, et ne permet que les questions et commandes prévues.
-- **Par défaut, Oscar ne voit rien.** Vous choisissez un appareil à la fois, parmi ceux déjà
-  exposés aux assistants vocaux. La règle est appliquée chez vous, à chaque demande.
-- **Tout est au journal de bord.** Chaque lecture, chaque commande, chaque code refusé, jamais
-  le code ni le mot de passe lui-même.
-- **Un interrupteur coupe tout.** « Accès d’Oscar » éteint : la liaison est fermée, rien ne
-  sort ; Oscar dit que l’accès est coupé.
-- **Rien n’est conservé chez Folonia.** Ce qu’Oscar lit sert à répondre pendant l’appel, puis
-  est oublié.
+Folonia, c’est d’abord le mains libres : le secret se dit à voix haute. Deux secrets possibles,
+choisis dans la page Folonia (**Code et protections**) ; l’un ou l’autre suffit :
 
-## Installer
+- un **code chiffré** de quatre à huit chiffres, dit à voix haute ou **tapé sur le clavier du
+  téléphone** (puis dièse) si vous n’êtes pas seul ;
+- un **mot de passe parlé** : un mot ou une courte phrase, par exemple « dragon rouge ».
+  Majuscules, accents et ponctuation ne comptent pas. Quatre lettres au moins ; six lettres ou
+  deux mots sont conseillés.
 
-Il faut un abonnement Folonia, Home Assistant 2025.2 ou plus récent, et
-[HACS](https://hacs.xyz).
+Ils sont vérifiés **chez vous** : seule leur empreinte est gardée dans Home Assistant, chacun se
+règle et s’efface séparément. Folonia ne les enregistre pas : ce que vous dites ou tapez est
+transmis avec la demande, puis oublié.
 
-1. Touchez le bouton **Ouvrir dans HACS** ci-dessus, ou, dans HACS, menu (les trois points),
-   **Dépôts personnalisés**, adresse `https://github.com/folonia/folonia-home-assistant`,
-   catégorie **Intégration**. L’intégration rejoindra ensuite le magasin de HACS.
-2. Installez **Folonia**, puis redémarrez Home Assistant.
-
-## Relier votre maison
-
-1. Sur [folonia.fr](https://folonia.fr), **Votre compte**, section **Maison** : **Obtenir un
-   code** (dix minutes, une seule fois).
-2. Dans Home Assistant : **Paramètres**, **Appareils et services**, **Ajouter une
-   intégration**, **Folonia**, puis saisissez le code.
-3. L’appareil **Folonia** apparaît, avec l’interrupteur **Accès d’Oscar** et le capteur
-   **Liaison**.
-
-## Choisir ce qu’Oscar lit et commande
-
-1. Exposez les appareils voulus aux assistants vocaux : **Paramètres**, **Assistants vocaux**,
-   onglet **Exposer**.
-2. Dans la page **Folonia** de la barre latérale, onglet **Appareils** : cochez ce qu’Oscar
-   peut lire, puis ce qu’il peut commander, et **Enregistrer** ; onglet **Code et protections** :
-   choisissez un code, un mot de passe, ou les deux.
-
-Pourquoi deux étapes ? Home Assistant expose d’office certains appareils nouveaux ; sans le
-choix propre à Folonia, Oscar en verrait plus que vous ne l’avez décidé. Retirer l’exposition
-retire aussi l’appareil à Oscar.
+![Code et protections : le code, le mot de passe, quand les demander](https://raw.githubusercontent.com/folonia/folonia-home-assistant/main/docs/images/page-code.png)
 
 ## Au téléphone
 
@@ -138,8 +168,11 @@ retire aussi l’appareil à Oscar.
 
 Oscar ne répète jamais un code ni un mot de passe.
 
-Si Home Assistant est éteint ou sans Internet, Oscar le dit tout de suite. Les proches de votre
-abonnement et les appels d’essai n’ont pas accès à votre maison.
+Si Home Assistant est éteint ou sans Internet, Oscar le dit tout de suite. Le titulaire du compte
+a accès à la maison, abonné ou pendant l’essai de 30 minutes. Les proches de votre abonnement et
+l’appel de découverte de deux minutes, sans compte, n’y ont pas accès. À la fin de l’essai, Oscar
+n’a plus accès à votre maison tant que vous n’êtes pas abonné ; la liaison reste en place jusqu’à
+ce que vous la déliiez.
 
 ## Couper, délier
 
@@ -157,7 +190,8 @@ abonnement et les appels d’essai n’ont pas accès à votre maison.
   tant que l’intégration est chargée.
 - **Liaison hors ligne** : elle se refait seule, avec un délai croissant (cinq minutes au plus).
 - **Nouveau code demandé** : la maison a été déliée ; saisissez un nouveau code.
-- **« Mettre à jour l’intégration Folonia »** : mettez-la à jour depuis HACS.
+- **« Mettre à jour l’intégration Folonia »** : mettez-la à jour depuis la Marketplace (depuis HACS avant
+  Home Assistant 2026.11).
 
 **Télécharger les diagnostics** donne l’état de la liaison et les dernières lignes du journal,
 sans secret ni code.
@@ -173,6 +207,7 @@ d’intelligence artificielle d’Oscar ; voir la politique de confidentialité 
 ou un mot de passe dit à voix haute passe lui aussi par ce fournisseur ; un code tapé sur le
 clavier, non : il ne passe que par Folonia, sans être enregistré.
 
+<!-- ha-marketplace:exclude-start -->
 ## Développement
 
 Protocole de la liaison : `custom_components/folonia/protocol.py`. La page Folonia : un seul
@@ -182,33 +217,39 @@ commandes WebSocket (`folonia/settings`, `folonia/save`, `folonia/secret`, `folo
 un faux service Folonia :
 
 ```sh
-uv venv --python 3.13 .venv
+uv venv --python 3.14 .venv
 uv pip install --python .venv/bin/python -r requirements_test.txt
 .venv/bin/ruff check . && .venv/bin/ruff format --check . && .venv/bin/python -m pytest -q
 ```
 
-Le banc de Home Assistant tourne sous Linux et macOS, pas sous Windows (WSL 2 ou la CI). En mode
-avancé, le formulaire d’ajout propose l’adresse du service, pour un laboratoire.
+Le banc de Home Assistant tourne sous Linux et macOS, pas sous Windows (WSL 2 ou la CI). La section repliée **Avancé** du formulaire d’ajout donne l’adresse du service, pour un
+laboratoire.
+<!-- ha-marketplace:exclude-end -->
 
 ## Licence
 
-[Apache 2.0](LICENSE), © 2026 DEVGO.
+[Apache 2.0](https://github.com/folonia/folonia-home-assistant/blob/main/LICENSE), © 2026 DEVGO.
+Pour signaler une faille : [politique de sécurité](https://github.com/folonia/folonia-home-assistant/blob/main/SECURITY.md).
+
+Home Assistant est une marque de l’Open Home Foundation. Folonia est un service indépendant, sans
+lien avec elle ni avec le projet Home Assistant.
 
 ---
 
 ## In English
 
-Folonia links your Home Assistant to your Folonia subscription, so that Oscar, the phone
-assistant, can read and control the devices **you** pick, among those already exposed to voice
+Folonia is sold in France only. This integration links your Home
+Assistant to your Folonia account (a 30-minute free trial, then a subscription), so that Oscar,
+the phone assistant, can read and control the devices **you** pick, among those already exposed to voice
 assistants. Your home opens an outbound connection: no open port, no Home Assistant token leaves
 your home. By default, unlocking, disarming, opening a gate or garage door, and reading
 presence, locks, alarm, doors and windows require a secret checked locally: a four to eight
 digit code, spoken or typed on the phone keypad, or a spoken password (a word or a short
 phrase), either one. Each protection can be unticked and devices can be exempted: your choice,
 your responsibility. Five wrong attempts in twenty-four hours block the lock. Every read and
-command goes to the logbook; the “Oscar access” switch cuts everything. Install with HACS
-(custom repository for now, category Integration), then add the Folonia integration with the
-eight-character code from your Folonia account. Settings live in the **Folonia** page of the
+command goes to the logbook; the “Oscar access” switch cuts everything. Install from the Home
+Assistant Marketplace (2026.11 or newer; HACS before that), then add the Folonia integration with
+the eight-character code from your Folonia account. Settings live in the **Folonia** page of the
 Home Assistant sidebar (administrators only; also reached through **Configure** on the
 integration, or `/folonia`): shared devices with search and filters, code and protections, and
 the integration’s log. Changes are kept until **Save** and checked by the integration. Oscar

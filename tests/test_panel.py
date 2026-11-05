@@ -31,6 +31,7 @@ from custom_components.folonia.const import (
     CONF_URL,
     CONF_VERIFY_SSL,
     DOMAIN,
+    VERSION,
 )
 from custom_components.folonia.voicelock import hash_code
 
@@ -40,7 +41,7 @@ from .fake_folonia import LINK_ID, FakeFolonia
 pytestmark = pytest.mark.enable_socket
 
 FRONTEND_PANELS = "frontend_panels"
-MODULE_URL = "/folonia_static/0.5.1/folonia-panel.js"
+MODULE_URL = f"/folonia_static/{VERSION}/folonia-panel.js"
 
 
 async def _home(
@@ -117,12 +118,16 @@ async def test_page_enregistree_puis_retiree(
     assert panel.sidebar_icon == "mdi:home-account"
     assert panel.require_admin is True
     assert panel.config_panel_domain == DOMAIN
-    assert panel.config["_panel_custom"] == {
-        "name": "folonia-panel",
-        "embed_iframe": False,
-        "trust_external": False,
-        "module_url": MODULE_URL,
-    }
+    # Home Assistant y ajoute ses propres clés selon les versions : on vérifie les nôtres.
+    assert (
+        panel.config["_panel_custom"].items()
+        >= {
+            "name": "folonia-panel",
+            "embed_iframe": False,
+            "trust_external": False,
+            "module_url": MODULE_URL,
+        }.items()
+    )
     # Le module est servi par l'intégration, la version dans l'adresse.
     client = await hass_client()
     response = await client.get(MODULE_URL)

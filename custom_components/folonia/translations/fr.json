@@ -3,11 +3,19 @@
     "step": {
       "user": {
         "title": "Relier votre maison à Oscar",
-        "description": "Dans votre espace Folonia (Votre compte, Maison), obtenez un code de huit caractères, valable dix minutes, et saisissez-le ici.\n\nC’est votre maison qui se connecte à Folonia : aucun port n’est ouvert chez vous, et Folonia ne reçoit aucun jeton de Home Assistant. Par défaut, Oscar ne voit rien : vous choisirez ensuite, dans la page Folonia de la barre latérale, ce qu’il peut lire.",
+        "description": "Dans votre espace Folonia (Votre compte, Maison), obtenez un code de huit caractères, valable dix minutes, et saisissez-le ici.\n\nC’est votre maison qui se connecte à Folonia : aucun port n’est ouvert chez vous, et Folonia ne reçoit aucun jeton de Home Assistant. Par défaut, Oscar ne voit rien : vous choisirez ensuite, dans la page Folonia de la barre latérale, ce qu’il peut lire.\n\nPas encore de compte Folonia ? [Essayez Oscar 30 minutes gratuitement]({trial_url}), sans carte (mobiles français).",
         "data": {
-          "code": "Code",
-          "url": "Adresse du service",
-          "verify_ssl": "Vérifier le certificat"
+          "code": "Code"
+        },
+        "sections": {
+          "advanced": {
+            "name": "Avancé (service de test seulement)",
+            "description": "Laissez tel quel : ces réglages ne servent qu’à un service de test.",
+            "data": {
+              "url": "Adresse du service",
+              "verify_ssl": "Vérifier le certificat"
+            }
+          }
         }
       },
       "reauth_confirm": {
@@ -54,7 +62,7 @@
   "issues": {
     "protocol": {
       "title": "Mettre à jour l’intégration Folonia",
-      "description": "Le service Folonia ne parle plus la version du protocole de cette intégration. Mettez-la à jour depuis HACS, puis redémarrez Home Assistant."
+      "description": "Le service Folonia ne parle plus la version du protocole de cette intégration. Mettez-la à jour depuis la Marketplace (depuis HACS avant Home Assistant 2026.11), puis redémarrez Home Assistant."
     }
   }
 }

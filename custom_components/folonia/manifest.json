@@ -2,6 +2,7 @@
   "domain": "folonia",
   "name": "Folonia",
   "after_dependencies": ["frontend", "panel_custom"],
+  "categories": ["ai_voice.voice_assistants"],
   "codeowners": ["@folonia"],
   "config_flow": true,
   "dependencies": ["http", "websocket_api"],
@@ -11,5 +12,5 @@
   "issue_tracker": "https://github.com/folonia/folonia-home-assistant/issues",
   "requirements": [],
   "single_config_entry": true,
-  "version": "0.5.1"
+  "version": "0.5.2"
 }

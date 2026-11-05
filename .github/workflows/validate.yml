@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: home-assistant/actions/hassfest@06749dd8c0b54f350bc69c8752456cee498808a3 # master du 2026-10-04
+      - uses: home-assistant/actions/hassfest@86d4564712fa02543c808e3a693dd04f9d3f8361 # master du 2026-11-05
 
   hacs:
     runs-on: ubuntu-latest
@@ -31,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
-      - run: uv venv --python 3.13 .venv
+      - run: uv venv --python 3.14 .venv
       - run: uv pip install --python .venv/bin/python -r requirements_test.txt
       - run: .venv/bin/ruff check .
       - run: .venv/bin/ruff format --check .

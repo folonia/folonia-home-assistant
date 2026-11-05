@@ -9,6 +9,7 @@ from homeassistant.config_entries import SOURCE_USER
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
+from custom_components.folonia.config_flow import SECTION_ADVANCED
 from custom_components.folonia.const import (
     CONF_CODE,
     CONF_CONTROL,
@@ -20,6 +21,8 @@ from custom_components.folonia.const import (
     CONF_URL,
     CONF_VERIFY_SSL,
     DOMAIN,
+    TRIAL_URL,
+    VERSION,
 )
 
 from .fake_folonia import SECRET, FakeFolonia
@@ -29,19 +32,27 @@ from .helpers import entity_id
 pytestmark = pytest.mark.enable_socket
 
 
+def _saisie(code: str, url: str) -> dict:
+    return {CONF_CODE: code, SECTION_ADVANCED: {CONF_URL: url, CONF_VERIFY_SSL: True}}
+
+
 async def _start(hass: HomeAssistant):
-    return await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": SOURCE_USER, "show_advanced_options": True}
-    )
+    return await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
 
 
 async def test_appariement_par_code(hass: HomeAssistant, folonia: tuple[FakeFolonia, str]) -> None:
     fake, url = folonia
     result = await _start(hass)
     assert result["type"] is FlowResultType.FORM
+    # Sans compte, le formulaire n'est pas un cul-de-sac : il mène à l'essai.
+    assert result["description_placeholders"] == {"trial_url": TRIAL_URL}
+    # L'adresse du service reste repliée : le formulaire ne montre que le code.
+    fields = {str(key): value for key, value in result["data_schema"].schema.items()}
+    assert set(fields) == {CONF_CODE, SECTION_ADVANCED}
+    assert fields[SECTION_ADVANCED].options["collapsed"] is True
 
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {CONF_CODE: "k7qm-4xt2", CONF_URL: url, CONF_VERIFY_SSL: True}
+        result["flow_id"], _saisie("k7qm-4xt2", url)
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"][CONF_SECRET] == SECRET
@@ -54,11 +65,11 @@ async def test_appariement_par_code(hass: HomeAssistant, folonia: tuple[FakeFolo
         CONF_LOCK_READ: True,
         CONF_EXEMPT: [],
     }
-    assert fake.paired_with == [{"code": "K7QM4XT2", "component": "0.5.1"}]
+    assert fake.paired_with == [{"code": "K7QM4XT2", "component": VERSION}]
 
     # La liaison s'ouvre aussitôt, et l'intégration le montre.
     await fake.connected.wait()
-    assert fake.received[0] == {"type": "hello", "protocol": 1, "component": "0.5.1"}
+    assert fake.received[0] == {"type": "hello", "protocol": 1, "component": VERSION}
     entry = hass.config_entries.async_entries(DOMAIN)[0]
     # La liaison tourne en tâche de fond : elle lit le `welcome` un peu après le faux service.
     for _ in range(100):
@@ -78,20 +89,41 @@ async def test_code_refuse_et_service_injoignable(
     _, url = folonia
     result = await _start(hass)
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {CONF_CODE: "AAAA-AAAA", CONF_URL: url, CONF_VERIFY_SSL: True}
+        result["flow_id"], _saisie("AAAA-AAAA", url)
     )
     assert result["errors"] == {CONF_CODE: "invalid_code"}
 
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {CONF_CODE: "trop court", CONF_URL: url, CONF_VERIFY_SSL: True}
+        result["flow_id"], _saisie("trop court", url)
     )
     assert result["errors"] == {CONF_CODE: "invalid_code"}
 
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
-        {CONF_CODE: "K7QM4XT2", CONF_URL: "http://127.0.0.1:9", CONF_VERIFY_SSL: True},
+        _saisie("K7QM4XT2", "http://127.0.0.1:9"),
     )
     assert result["errors"] == {"base": "cannot_connect"}
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], _saisie("K7QM4XT2", "pas une adresse")
+    )
+    assert result["errors"] == {"base": "invalid_url"}
+
+
+async def test_sans_section_avancee_le_service_de_folonia(
+    hass: HomeAssistant, folonia: tuple[FakeFolonia, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, url = folonia
+    monkeypatch.setattr("custom_components.folonia.config_flow.DEFAULT_URL", url)
+    result = await _start(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_CODE: "K7QM4XT2"}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_URL] == url
+    assert result["data"][CONF_VERIFY_SSL] is True
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    assert await hass.config_entries.async_unload(entry.entry_id)
 
 
 async def test_les_options_renvoient_a_la_page(
@@ -99,9 +131,7 @@ async def test_les_options_renvoient_a_la_page(
 ) -> None:
     fake, url = folonia
     result = await _start(hass)
-    await hass.config_entries.flow.async_configure(
-        result["flow_id"], {CONF_CODE: "K7QM4XT2", CONF_URL: url, CONF_VERIFY_SSL: True}
-    )
+    await hass.config_entries.flow.async_configure(result["flow_id"], _saisie("K7QM4XT2", url))
     entry = hass.config_entries.async_entries(DOMAIN)[0]
     await fake.connected.wait()
     options = dict(entry.options)
