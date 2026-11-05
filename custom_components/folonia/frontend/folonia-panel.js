@@ -873,7 +873,7 @@ class FoloniaPanel extends HTMLElement {
       </div>
       <div class="card pad">
         <h2>Quand demander le code</h2>
-        <p class="hint">Par défaut, Oscar demande votre code ou votre mot de passe avant d’ouvrir la maison, et avant de dire ce qui révèle qu’elle est vide. Chaque protection se décoche : c’est votre choix, sous votre responsabilité.</p>
+        <p class="hint">Par défaut, Oscar demande votre code ou votre mot de passe avant d’ouvrir la maison, et avant de dire ce qui révèle qu’elle est vide. Chaque protection se décoche, en connaissance de cause. Le code ne couvre que les appareils que Home Assistant déclare comme serrure, alarme, portail ou porte : un portail commandé par un interrupteur ou un script n’est pas protégé. Un code accepté vaut jusqu’à la fin de l’appel.</p>
         <div class="opt">
           <div><b>Pour déverrouiller, désarmer, ouvrir</b><p>Serrures, alarme, portail et porte de garage ne s’ouvrent qu’avec votre code ou votre mot de passe.</p></div>
           ${toggle('data-prot="lock_open"', lockOpen, false, "Code pour déverrouiller, désarmer, ouvrir")}

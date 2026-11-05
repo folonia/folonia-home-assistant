@@ -39,8 +39,8 @@ libres et sans application. Aucun port ouvert chez vous, aucun jeton de Home Ass
   le code ni le mot de passe lui-même.
 - **Un interrupteur coupe tout.** « Accès d’Oscar » éteint : la liaison est fermée, rien ne
   sort ; Oscar dit que l’accès est coupé.
-- **Par défaut, rien n’est conservé chez Folonia.** Ce qu’Oscar lit sert à répondre pendant
-  l’appel, puis est oublié. Seule exception, à votre demande : voir [Données](#données).
+- **Par défaut, Folonia ne garde rien de ce qu’Oscar lit.** Cela sert à répondre pendant l’appel.
+  Le détail, prestataires et exception à votre demande compris : [Données](#données).
 
 ## Installer
 
@@ -120,8 +120,13 @@ enregistrés quand même, et la page le dit : d’ici là, Oscar refuse ce qui d
 Tout ce que la page envoie est vérifié par l’intégration, qui l’applique sans redémarrage.
 
 Chaque protection est **cochée par défaut, expliquée, et se décoche** : nous proposons ce qu’il
-faut pour la sécurité, mais si vous préférez faire autrement, c’est votre choix, sous votre
-responsabilité.
+faut pour la sécurité ; si vous préférez faire autrement, vous décidez en connaissance de cause.
+
+**Ce que le code ne couvre pas :** il dépend du type que Home Assistant donne à l’appareil. Un
+portail ou une serrure commandés par un interrupteur, un script ou une scène, ou un appareil sans
+classe, s’ouvrent sans code : ne les cochez en commande que si vous l’acceptez. Fermer un portail ou
+une porte de garage à distance ne demande jamais de code non plus. Un code accepté vaut jusqu’à la
+fin de l’appel. Oscar vous reconnaît à votre seul numéro.
 
 | Réglage | Par défaut | Ce qu’il fait |
 | --- | --- | --- |
@@ -152,8 +157,8 @@ choisis dans la page Folonia (**Code et protections**) ; l’un ou l’autre suf
   deux mots sont conseillés.
 
 Ils sont vérifiés **chez vous** : seule leur empreinte est gardée dans Home Assistant, chacun se
-règle et s’efface séparément. Folonia ne les garde pas : ce que vous dites ou tapez est transmis
-avec la demande, puis oublié.
+règle et s’efface séparément. Folonia ne les garde pas ; un code ou un mot de passe dit à voix haute
+passe par son prestataire d’IA : voir [Données](#données).
 
 ![Code et protections : le code, le mot de passe, quand les demander](https://raw.githubusercontent.com/folonia/folonia-home-assistant/main/docs/images/page-code.png)
 
@@ -199,19 +204,25 @@ sans secret ni code.
 
 ## Données
 
-Sortent de chez vous, seulement pendant un appel et sans être gardés par Folonia : le nom, la
-pièce, leurs alias, le domaine et la classe des appareils cochés ; l’état des seuls appareils demandés
-(quelques attributs : luminosité, position, températures, humidité) ; la version de
-l’intégration. Folonia ne garde que la liaison (une empreinte de son secret, sa date), effacée
-quand vous déliez votre maison. L’état lu passe, pendant l’appel, par le fournisseur
-d’intelligence artificielle d’Oscar ; voir la politique de confidentialité de Folonia. Un code
-ou un mot de passe dit à voix haute passe lui aussi par ce fournisseur ; un code tapé sur le
-clavier, non : il ne passe que par Folonia, sans être enregistré.
+- **En permanence**, Folonia voit l’état de la liaison, son adresse IP et la version de
+  l’intégration. Par cette liaison, son serveur peut lire et commander ce que vous avez coché ; il
+  ne le fait que pendant vos appels.
+- **Pendant un appel, sans être gardés** : l’identifiant, le nom, la pièce, les alias, le domaine et
+  la classe des appareils cochés ; l’état des seuls appareils demandés, l’heure de son dernier
+  changement et quelques attributs (luminosité, position, températures, humidité, vitesse, chauffe) ;
+  vos commandes. Un nom peut citer quelqu’un, et une présence dire où se trouve une personne.
+- **Chez les prestataires** : OpenAI reçoit ce que vous dites, les noms et les états lus, et peut les
+  garder jusqu’à 30 jours ; Microsoft lit à voix haute ce qu’Oscar en dit. Un code ou un mot de passe
+  dit à voix haute passe aussi par OpenAI ; un code tapé au clavier, non : il ne passe que par Folonia,
+  sans être enregistré.
+- **Ce que Folonia garde** : la liaison (une empreinte de son secret, sa date), jusqu’à ce que vous
+  la déliiez, et la preuve de votre acceptation des conditions.
+- **Si vous cochez « Aider à améliorer Oscar »** dans votre espace (décoché par défaut) : le texte de
+  vos appels est gardé 30 jours, y compris ce qui concerne vos appareils. Nous masquons la phrase où
+  vous donnez un code ou un mot de passe quand Oscar l’attend ou le transmet à votre maison ; dit à un
+  autre moment, il peut y rester en clair. Tapez-le, ou ne cochez pas cette case.
 
-**Si vous cochez « Aider à améliorer Oscar »** dans votre espace Folonia (décoché par défaut), le
-texte de vos appels est gardé 30 jours pour corriger les erreurs d’Oscar, y compris ce qu’il dit de
-vos appareils. La phrase où vous donnez un code ou un mot de passe en est masquée. Décocher arrête
-tout dès l’appel suivant, et ce qui a été gardé est effacé.
+Détail : [notice de confidentialité](https://compte.folonia.fr/confidentialite), § 2.6.
 
 <!-- ha-marketplace:exclude-start -->
 ## Développement
@@ -251,8 +262,7 @@ assistants. Your home opens an outbound connection: no open port, no Home Assist
 your home. By default, unlocking, disarming, opening a gate or garage door, and reading
 presence, locks, alarm, doors and windows require a secret checked locally: a four to eight
 digit code, spoken or typed on the phone keypad, or a spoken password (a word or a short
-phrase), either one. Each protection can be unticked and devices can be exempted: your choice,
-your responsibility. Five wrong attempts in twenty-four hours block the lock. Every read and
+phrase), either one. Each protection can be unticked and devices can be exempted, knowingly. The code only covers devices Home Assistant declares as locks, alarms, gates and the like: a gate driven by a switch, script or scene is not protected. Five wrong attempts in twenty-four hours block the lock. Every read and
 command goes to the logbook; the “Oscar access” switch cuts everything. Install from the Home
 Assistant Marketplace (2026.11 or newer; HACS before that), then add the Folonia integration with
 the eight-character code from your Folonia account. Settings live in the **Folonia** page of the
