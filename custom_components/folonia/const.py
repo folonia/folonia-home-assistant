@@ -10,7 +10,7 @@ PANEL_URL = "folonia"
 PANEL_TITLE = "Folonia"
 PANEL_ICON = "mdi:home-account"
 
-#: Le service Folonia ; modifiable en mode avancé (laboratoire).
+#: Le service Folonia ; modifiable dans la section repliée du formulaire (laboratoire).
 DEFAULT_URL = "https://compte.folonia.fr"
 #: L'essai de 30 minutes, pour qui n'a pas encore de compte.
 TRIAL_URL = "https://compte.folonia.fr/essai-long?utm_source=home-assistant"

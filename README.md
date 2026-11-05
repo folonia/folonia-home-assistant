@@ -39,8 +39,8 @@ libres et sans application. Aucun port ouvert chez vous, aucun jeton de Home Ass
   le code ni le mot de passe lui-même.
 - **Un interrupteur coupe tout.** « Accès d’Oscar » éteint : la liaison est fermée, rien ne
   sort ; Oscar dit que l’accès est coupé.
-- **Rien n’est conservé chez Folonia.** Ce qu’Oscar lit sert à répondre pendant l’appel, puis
-  est oublié.
+- **Par défaut, rien n’est conservé chez Folonia.** Ce qu’Oscar lit sert à répondre pendant
+  l’appel, puis est oublié. Seule exception, à votre demande : voir [Données](#données).
 
 ## Installer
 
@@ -152,8 +152,8 @@ choisis dans la page Folonia (**Code et protections**) ; l’un ou l’autre suf
   deux mots sont conseillés.
 
 Ils sont vérifiés **chez vous** : seule leur empreinte est gardée dans Home Assistant, chacun se
-règle et s’efface séparément. Folonia ne les enregistre pas : ce que vous dites ou tapez est
-transmis avec la demande, puis oublié.
+règle et s’efface séparément. Folonia ne les garde pas : ce que vous dites ou tapez est transmis
+avec la demande, puis oublié.
 
 ![Code et protections : le code, le mot de passe, quand les demander](https://raw.githubusercontent.com/folonia/folonia-home-assistant/main/docs/images/page-code.png)
 
@@ -206,6 +206,11 @@ quand vous déliez votre maison. L’état lu passe, pendant l’appel, par le f
 d’intelligence artificielle d’Oscar ; voir la politique de confidentialité de Folonia. Un code
 ou un mot de passe dit à voix haute passe lui aussi par ce fournisseur ; un code tapé sur le
 clavier, non : il ne passe que par Folonia, sans être enregistré.
+
+**Si vous cochez « Aider à améliorer Oscar »** dans votre espace Folonia (décoché par défaut), le
+texte de vos appels est gardé 30 jours pour corriger les erreurs d’Oscar, y compris ce qu’il dit de
+vos appareils. La phrase où vous donnez un code ou un mot de passe en est masquée. Décocher arrête
+tout dès l’appel suivant, et ce qui a été gardé est effacé.
 
 <!-- ha-marketplace:exclude-start -->
 ## Développement

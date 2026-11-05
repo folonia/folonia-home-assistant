@@ -855,7 +855,7 @@ class FoloniaPanel extends HTMLElement {
     return `${blocked}${this._secretBanner()}${general}
       <div class="card pad">
         <h2>Vos secrets</h2>
-        <p class="hint">Deux secrets possibles, l’un ou l’autre suffit. Ils sont vérifiés ici : Folonia ne les connaît pas, seule leur empreinte est gardée dans Home Assistant. Laissez un champ vide pour garder ce qui est réglé.</p>
+        <p class="hint">Deux secrets possibles, l’un ou l’autre suffit. Ils sont vérifiés ici : Folonia ne les garde pas, seule leur empreinte est gardée dans Home Assistant. Laissez un champ vide pour garder ce qui est réglé.</p>
         ${this._secretField(
           "code",
           "Code chiffré",
