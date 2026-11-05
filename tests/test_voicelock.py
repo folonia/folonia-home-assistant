@@ -36,8 +36,8 @@ def test_verrou_compte_les_codes_faux_sur_vingt_quatre_heures() -> None:
         assert lock.check("0000", now=10 + i) == "code_invalid"
     assert lock.check("0000", now=20) == "locked"
     assert lock.check("2468", now=21) == "locked"
-    # Vingt-quatre heures plus tard, les premiers échecs ne comptent plus.
-    assert lock.check("2468", now=10 + 24 * 3600 + 1) == "ok"
+    # Le temps seul ne débloque pas : un essai lent ne doit pas pouvoir recommencer sans fin.
+    assert lock.check("2468", now=10 + 24 * 3600 + 1) == "locked"
     lock.reset()
     assert not lock.is_locked()
 

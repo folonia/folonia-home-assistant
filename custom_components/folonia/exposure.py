@@ -110,11 +110,15 @@ def opens_home(state: State) -> bool:
 def needs_code(state: State, service: str, data: Mapping[str, Any]) -> bool:
     """Ce qui ouvre la maison : déverrouiller, désarmer, ouvrir une porte ou un portail.
 
-    Verrouiller, armer, fermer, arrêter : sans code. `service` est `domaine.service`. Les
-    réglages (`lock_open`, exemptions) sont appliqués par `command_guarded`.
+    Verrouiller, armer une alarme désarmée, fermer, arrêter : sans code. Changer le mode d'une
+    alarme armée ou déclenchée, oui : c'est l'affaiblir ou la faire taire. `service` est
+    `domaine.service`. Les réglages (`lock_open`, exemptions) sont appliqués par
+    `command_guarded`.
     """
     if not opens_home(state):
         return False
+    if service.startswith("alarm_control_panel.alarm_arm_"):
+        return state.state != "disarmed"
     if service in LOCKED_SERVICES:
         return True
     if service not in LOCKED_COVER_SERVICES:

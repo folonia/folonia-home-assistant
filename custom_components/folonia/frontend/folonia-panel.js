@@ -621,6 +621,13 @@ class FoloniaPanel extends HTMLElement {
     return ["wait", "Hors ligne"];
   }
 
+  _serviceBanner() {
+    const service = this._data.link.custom_service;
+    return service
+      ? `<div class="banner err" role="status"><p>Cette maison n’est pas reliée au service de Folonia, mais à ${esc(service)}. Si vous n’êtes pas à l’origine de ce réglage, supprimez l’intégration.</p></div>`
+      : "";
+  }
+
   _secretBanner() {
     if (!this._data.secret_needed) return "";
     const action =
@@ -633,7 +640,7 @@ class FoloniaPanel extends HTMLElement {
   _devicesView() {
     const data = this._data;
     const hasSwitch = Boolean(data.link.switch);
-    const top = `${this._secretBanner()}
+    const top = `${this._serviceBanner()}${this._secretBanner()}
       <div class="card pad">
         <div class="access">
           <div>
@@ -892,7 +899,7 @@ class FoloniaPanel extends HTMLElement {
             ? ""
             : `<div class="warnbox" role="status">Décoché : Oscar dit l’état de ces appareils à quiconque appelle depuis votre numéro.</div>`
         }
-        <p class="hint">Verrouiller, armer, fermer et arrêter ne demandent jamais de code. Les appareils marqués « Sans code » dans la liste n’en demandent jamais.</p>
+        <p class="hint">Verrouiller, armer une alarme désarmée, fermer et arrêter ne demandent jamais de code. Les appareils marqués « Sans code » dans la liste n’en demandent jamais.</p>
       </div>
       <div class="card pad">
         <h2>Verrou vocal</h2>

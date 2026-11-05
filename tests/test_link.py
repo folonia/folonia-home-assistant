@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import AsyncIterator
 
 import pytest
@@ -15,6 +16,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.folonia import exposure, protocol
 from custom_components.folonia.const import (
     CONF_CONTROL,
     CONF_EXEMPT,
@@ -637,3 +639,43 @@ async def test_mot_de_passe_parle_et_essais_faux_comptes_ensemble(
     messages = [m for _, m in ((e.data.get("entity_id"), e.data["message"]) for e in logbook)]
     assert "code ou mot de passe du verrou vocal modifié" in messages
     assert not any("dragon" in m.lower() or "2468" in m for m in messages)
+
+
+async def test_acces_coupe_le_reste_apres_un_rechargement(
+    hass: HomeAssistant, linked: tuple[FakeFolonia, MockConfigEntry, list[Event]]
+) -> None:
+    fake, entry, _ = linked
+    await entry.runtime_data.async_set_enabled(False)
+    await fake.disconnected.wait()
+    fake.connected.clear()
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert entry.runtime_data.enabled is False
+    assert not fake.connected.is_set()
+
+
+async def test_affaiblir_une_alarme_armee_demande_le_code(
+    hass: HomeAssistant, linked: tuple[FakeFolonia, MockConfigEntry, list[Event]]
+) -> None:
+    hass.states.async_set("alarm_control_panel.maison", "armed_away", {"friendly_name": "Alarme"})
+    state = hass.states.get("alarm_control_panel.maison")
+    service = "alarm_control_panel.alarm_arm_home"
+    assert exposure.needs_code(state, service, {}) is True
+    hass.states.async_set("alarm_control_panel.maison", "triggered")
+    assert exposure.needs_code(hass.states.get("alarm_control_panel.maison"), service, {}) is True
+    hass.states.async_set("alarm_control_panel.maison", "disarmed")
+    assert exposure.needs_code(hass.states.get("alarm_control_panel.maison"), service, {}) is False
+    assert exposure.needs_code(state, "alarm_control_panel.alarm_disarm", {}) is True
+
+
+def test_requetes_mal_formees_et_adresses_refusees() -> None:
+    assert protocol.parse_request("[" * 100000) is None
+    assert protocol.is_welcome("[" * 100000) is False
+    assert protocol.backoff(5000) <= 300
+    surrogate = json.dumps(
+        {"type": "request", "id": "1", "op": "command", "entity_id": "\ud800", "service": "a.b"}
+    )
+    assert protocol.parse_request(surrogate).op == "invalid"
+    assert protocol.base_url("https://compte.folonia.fr@evil.example") is None
+    assert protocol.base_url("http://evil.example") is None
+    assert protocol.base_url("http://192.168.0.10:8080") == "http://192.168.0.10:8080"

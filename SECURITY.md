@@ -21,3 +21,11 @@ nous vous tenons au courant du correctif.
 
 Seule la dernière version publiée reçoit les correctifs. Si une version devient dangereuse, nous
 la retirons et Home Assistant vous propose la mise à jour.
+
+## Limites connues
+
+- Oscar vous reconnaît à votre numéro : un numéro usurpé est traité comme le vôtre, d’où le code sur
+  ce qui ouvre la maison.
+- Le code ou le mot de passe passe par le service le temps de chaque demande. Folonia ne le garde
+  pas, mais le verrou arrête un essai à l’aveugle, pas un service compromis qui l’aurait capté.
+- Le code ne couvre que les appareils que Home Assistant déclare du bon type : voir le README.

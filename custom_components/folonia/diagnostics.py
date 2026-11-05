@@ -9,10 +9,12 @@ from homeassistant.core import HomeAssistant
 
 from . import FoloniaConfigEntry
 from .const import (
-    CONF_LOCK_HASH,
-    CONF_LOCK_SALT,
-    CONF_PHRASE_HASH,
-    CONF_PHRASE_SALT,
+    CONF_CONTROL,
+    CONF_EXEMPT,
+    CONF_LINK_ID,
+    CONF_LOCK_OPEN,
+    CONF_LOCK_READ,
+    CONF_READ,
     CONF_SECRET,
 )
 
@@ -22,16 +24,19 @@ async def async_get_config_entry_diagnostics(
 ) -> dict[str, Any]:
     link = entry.runtime_data
     return {
-        "data": async_redact_data(dict(entry.data), {CONF_SECRET}),
-        "options": async_redact_data(
-            dict(entry.options),
-            {CONF_LOCK_HASH, CONF_LOCK_SALT, CONF_PHRASE_HASH, CONF_PHRASE_SALT},
-        ),
+        "data": async_redact_data(dict(entry.data), {CONF_SECRET, CONF_LINK_ID}),
+        # Des totaux : ce fichier finit parfois joint à une demande publique.
+        "shared": {
+            key: len(entry.options.get(key, ())) for key in (CONF_READ, CONF_CONTROL, CONF_EXEMPT)
+        },
+        "protections": {key: entry.options.get(key) for key in (CONF_LOCK_OPEN, CONF_LOCK_READ)},
         "lock_code_configured": link.lock.code_configured,
         "lock_phrase_configured": link.lock.phrase_configured,
         "lock_failures": len(link.lock.failures),
         "enabled": link.enabled,
         "connected": link.connected,
         "stopped_reason": link.stopped_reason,
-        "journal": list(link.journal.entries),
+        "journal": [
+            {key: line[key] for key in ("time", "refused")} for line in link.journal.entries
+        ],
     }

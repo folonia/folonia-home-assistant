@@ -19,7 +19,15 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 
 from . import exposure, settings
-from .const import CONF_LOCK_HASH, CONF_PHRASE_HASH, DOMAIN, LOCK_FAILURES, VERSION
+from .const import (
+    CONF_LOCK_HASH,
+    CONF_PHRASE_HASH,
+    CONF_URL,
+    DEFAULT_URL,
+    DOMAIN,
+    LOCK_FAILURES,
+    VERSION,
+)
 from .link import FoloniaLink
 from .protocol import MAX_ALIASES_SET, MAX_ENTITIES, MAX_NAME
 
@@ -72,6 +80,11 @@ def _payload(hass: HomeAssistant, entry: ConfigEntry[FoloniaLink]) -> dict[str, 
             "enabled": link.enabled,
             "connected": link.connected,
             "stopped": link.stopped_reason,
+            # Montrée seulement si ce n'est pas le service de Folonia : un administrateur trompé
+            # doit le voir.
+            "custom_service": (
+                entry.data[CONF_URL] if entry.data.get(CONF_URL) != DEFAULT_URL else None
+            ),
             "switch": _own_entity(hass, entry, "switch", "access"),
             "sensor": _own_entity(hass, entry, "binary_sensor", "link"),
         },

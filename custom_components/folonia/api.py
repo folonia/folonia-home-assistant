@@ -12,7 +12,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .const import VERSION
 from .protocol import pair_url
 
-_SECRET = re.compile(r"^fol_[A-Za-z0-9_-]{43}$")
+_SECRET = re.compile(r"fol_[A-Za-z0-9_-]{43}")
 _TIMEOUT = aiohttp.ClientTimeout(total=15)
 
 
@@ -38,7 +38,11 @@ async def async_pair(hass: HomeAssistant, base: str, code: str, verify_ssl: bool
     """Échange le code de l'espace client contre le secret de liaison, rendu une seule fois."""
     session = async_get_clientsession(hass, verify_ssl=verify_ssl)
     async with session.post(
-        pair_url(base), json={"code": code, "component": VERSION}, timeout=_TIMEOUT
+        # Ni le code ni le secret ne suivent une redirection.
+        pair_url(base),
+        json={"code": code, "component": VERSION},
+        timeout=_TIMEOUT,
+        allow_redirects=False,
     ) as response:
         if response.status == 429:
             raise PairingRateLimited
@@ -49,7 +53,7 @@ async def async_pair(hass: HomeAssistant, base: str, code: str, verify_ssl: bool
         body = await response.json(content_type=None)
     link_id = body.get("link_id") if isinstance(body, dict) else None
     secret = body.get("link_secret") if isinstance(body, dict) else None
-    if not isinstance(link_id, str) or not isinstance(secret, str) or not _SECRET.match(secret):
+    if not isinstance(link_id, str) or not isinstance(secret, str) or not _SECRET.fullmatch(secret):
         raise PairingFailed("réponse inattendue")
     return Paired(link_id, secret)
 
@@ -62,6 +66,7 @@ async def async_unlink(hass: HomeAssistant, base: str, secret: str, verify_ssl: 
             f"{base}/v1/home/link",
             headers={"Authorization": f"Bearer {secret}"},
             timeout=_TIMEOUT,
+            allow_redirects=False,
         ) as response:
             return response.status in (204, 401)
     except (aiohttp.ClientError, TimeoutError):

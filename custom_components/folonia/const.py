@@ -46,7 +46,7 @@ ASSISTANT = "conversation"
 
 #: Ce qui dit quand une maison est vide : un avertissement les accompagne, et leur état n'est
 #: rendu qu'avec le code vocal tant que `lock_read` est coché.
-SENSITIVE_DOMAINS = frozenset({"lock", "alarm_control_panel", "person", "device_tracker"})
+SENSITIVE_DOMAINS = frozenset({"lock", "alarm_control_panel", "person", "device_tracker", "zone"})
 SENSITIVE_CLASSES = frozenset(
     {
         "door",
@@ -90,10 +90,10 @@ CONTROL_DOMAINS = frozenset(SERVICES)
 
 #: Ce qui ouvre la maison : serrures, alarme, et les ouvertures qui y donnent accès.
 LOCKED_DOMAINS = frozenset({"lock", "alarm_control_panel"})
-LOCKED_COVER_CLASSES = frozenset({"garage", "garage_door", "gate", "door"})
+LOCKED_COVER_CLASSES = frozenset({"garage", "garage_door", "gate", "door", "window"})
 #: Sous code tant que `lock_open` est coché (par défaut) : déverrouiller, désarmer, ouvrir une
-#: porte ou un portail (`set_cover_position` au-dessus de zéro aussi). Verrouiller, armer,
-#: fermer et arrêter passent sans code.
+#: porte ou un portail (`set_cover_position` au-dessus de zéro aussi). Verrouiller, armer une
+#: alarme désarmée, fermer et arrêter passent sans code.
 LOCKED_SERVICES = frozenset({"lock.unlock", "alarm_control_panel.alarm_disarm"})
 LOCKED_COVER_SERVICES = frozenset({"cover.open_cover", "cover.set_cover_position"})
 
@@ -108,6 +108,9 @@ LOCK_FAILURES = 5
 LOCK_WINDOW_SECONDS = 24 * 3600
 #: Un service Home Assistant qui ne répond pas dans ce délai : la commande est dite échouée.
 SERVICE_TIMEOUT = 10
+#: Requêtes acceptées du service par fenêtre, en secondes : large devant un vrai appel.
+RATE_MAX = 120
+RATE_WINDOW = 60
 #: Après une commande, l'attente de l'état, en secondes : la réponse de l'appareil, puis une limite
 #: depuis le début de la commande, sous ce que le service Folonia attend de la maison (2,5 s).
 STATE_SETTLE = 1.0

@@ -33,6 +33,8 @@ from .const import (
     CONF_URL,
     CONF_VERIFY_SSL,
     DOMAIN,
+    RATE_MAX,
+    RATE_WINDOW,
     SERVICE_DATA,
     SERVICE_TIMEOUT,
     SERVICES,
@@ -90,6 +92,8 @@ class FoloniaLink:
         self._task: asyncio.Task[None] | None = None
         self._ws: aiohttp.ClientWebSocketResponse | None = None
         self._listeners: list[Callable[[], None]] = []
+        self._rate_since = 0.0
+        self._rate_count = 0
 
     async def async_load(self) -> None:
         """L'état de l'interrupteur et les codes faux récents survivent aux redémarrages."""
@@ -98,10 +102,15 @@ class FoloniaLink:
         failures = data.get("code_failures", [])
         if isinstance(failures, list):
             self.lock.failures.extend(float(t) for t in failures if isinstance(t, (int, float)))
+        self.lock.blocked = bool(data.get("lock_blocked", False))
 
     async def _save(self) -> None:
         await self._store.async_save(
-            {"enabled": self.enabled, "code_failures": list(self.lock.failures)}
+            {
+                "enabled": self.enabled,
+                "code_failures": list(self.lock.failures),
+                "lock_blocked": self.lock.blocked,
+            }
         )
 
     @callback
@@ -110,9 +119,16 @@ class FoloniaLink:
         new = voice_lock(self.entry.options)
         if new.fingerprint == self.lock.fingerprint:
             new.failures.extend(self.lock.failures)
+            new.blocked = self.lock.blocked
         else:
             self.journal.record("code ou mot de passe du verrou vocal modifié")
+            # Le déblocage survit à un redémarrage, comme le blocage.
+            self.entry.async_create_task(self.hass, self._save_lock(new))
         self.lock = new
+
+    async def _save_lock(self, lock: VoiceLock) -> None:
+        self.lock = lock
+        await self._save()
 
     @callback
     def async_add_listener(self, listener: Callable[[], None]) -> Callable[[], None]:
@@ -146,7 +162,8 @@ class FoloniaLink:
         task, self._task = self._task, None
         if task is not None:
             task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
+            # Une tâche déjà morte ne doit pas empêcher de couper l'accès.
+            with contextlib.suppress(asyncio.CancelledError, Exception):
                 await task
         self._ws = None
         self._set_connected(False)
@@ -163,6 +180,8 @@ class FoloniaLink:
             self.journal.record("accès rouvert depuis Home Assistant")
             self.async_start()
         else:
+            # Coupé reste coupé, redémarrage ou rechargement compris : écrit avant tout le reste.
+            await self._save()
             ws = self._ws
             if ws is not None and not ws.closed:
                 with contextlib.suppress(aiohttp.ClientError, ConnectionError, RuntimeError):
@@ -171,6 +190,14 @@ class FoloniaLink:
             await self.async_stop()
             self.journal.record("accès coupé depuis Home Assistant")
         self._notify()
+
+    def _over_rate(self) -> bool:
+        """Un service qui inonde : ni journal rempli, ni appareils actionnés sans fin."""
+        now = self.hass.loop.time()
+        if now - self._rate_since >= RATE_WINDOW:
+            self._rate_since, self._rate_count = now, 0
+        self._rate_count += 1
+        return self._rate_count > RATE_MAX
 
     async def _run(self) -> None:
         attempt = 0
@@ -182,6 +209,9 @@ class FoloniaLink:
                 outcome = "unlinked" if err.status == 401 else "lost"
             except (aiohttp.ClientError, TimeoutError, OSError) as err:
                 _LOGGER.debug("Folonia injoignable : %s", err)
+            except Exception:
+                # Une trame ou une panne imprévue ne doit jamais arrêter la liaison pour de bon.
+                _LOGGER.exception("liaison Folonia interrompue")
             if outcome in ("unlinked", "protocol"):
                 self._halt(outcome)
                 return
@@ -234,7 +264,11 @@ class FoloniaLink:
                 async for message in ws:
                     if message.type != aiohttp.WSMsgType.TEXT:
                         continue
-                    reply = await self._answer(message.data)
+                    reply = (
+                        protocol.overloaded(message.data)
+                        if self._over_rate()
+                        else await self._answer(message.data)
+                    )
                     if reply is not None:
                         await ws.send_str(reply)
                 return True, protocol.outcome_of_close(ws.close_code)
@@ -311,11 +345,19 @@ class FoloniaLink:
     async def _verify(self, code: str | None, entity_id: str) -> str:
         """Le verrou vocal, pour une commande ou une lecture : les essais faux comptent pareil,
         code ou mot de passe, dit ou tapé."""
+        was_blocked = self.lock.blocked
+        had_failures = bool(self.lock.failures)
         verdict = self.lock.check(code)
         if verdict in ("code_invalid", "locked") and code:
-            await self._save()
             self.journal.record("code du verrou vocal refusé", entity_id, refused=True)
-        if verdict == "locked" and code:
+            # Déjà bloqué : ni écriture ni notification de plus à chaque essai.
+            if not was_blocked:
+                await self._save()
+            if verdict == "code_invalid" and not had_failures:
+                self._notify_failed_code()
+        elif verdict == "ok" and had_failures:
+            await self._save()
+        if verdict == "locked" and code and not was_blocked:
             await self._notify_locked()
         return verdict
 
@@ -379,6 +421,19 @@ class FoloniaLink:
             if settled or self.hass.loop.time() >= deadline:
                 return after
             await asyncio.sleep(0.05)
+
+    @callback
+    def _notify_failed_code(self) -> None:
+        """Un code faux : prévenu dès le premier, pour qu'un essai lent ne passe pas inaperçu."""
+        persistent_notification.async_create(
+            self.hass,
+            (
+                "Un code ou un mot de passe faux a été donné à Oscar au téléphone. Si ce n'était "
+                "pas vous, changez-le dans la page Folonia et éteignez « Accès d'Oscar »."
+            ),
+            title="Folonia : code faux",
+            notification_id=f"{DOMAIN}_failed_code",
+        )
 
     async def _notify_locked(self) -> None:
         """Verrou bloqué : l'utilisateur en est averti dans Home Assistant."""

@@ -6,6 +6,7 @@ et se teste seul.
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import random
 import re
@@ -65,12 +66,26 @@ def normalize_code(text: str) -> str | None:
     return code
 
 
+def _is_local(host: str | None) -> bool:
+    if not host:
+        return False
+    if host == "localhost" or host.endswith(".local"):
+        return True
+    try:
+        return ipaddress.ip_address(host).is_private
+    except ValueError:
+        return False
+
+
 def base_url(text: str) -> str | None:
     """Adresse du service, sans chemin final : `https://folonia.fr`. `None` si invalide."""
     parts = urlsplit(text.strip())
     if parts.scheme not in ("https", "http") or not parts.netloc:
         return None
-    if parts.query or parts.fragment:
+    if parts.query or parts.fragment or parts.username or parts.password:
+        return None
+    # Le secret de la liaison ne circule en clair que sur le réseau local (un laboratoire).
+    if parts.scheme == "http" and not _is_local(parts.hostname):
         return None
     return urlunsplit((parts.scheme, parts.netloc, parts.path.rstrip("/"), "", ""))
 
@@ -91,7 +106,7 @@ def backoff(attempt: int, rng: random.Random | None = None) -> float:
 
     Avec aléa : des maisons coupées en même temps ne reviennent pas toutes ensemble.
     """
-    ceiling = min(300.0, float(2 ** max(0, attempt - 1)))
+    ceiling = min(300.0, float(2 ** min(9, max(0, attempt - 1))))
     return ceiling * (0.5 + 0.5 * (rng or random).random())
 
 
@@ -115,6 +130,12 @@ def hello(component: str) -> str:
     return json.dumps({"type": "hello", "protocol": PROTOCOL, "component": component})
 
 
+def overloaded(text: str) -> str | None:
+    """Réponse à une requête en trop : refusée sans être exécutée, si elle a un identifiant."""
+    request = parse_request(text)
+    return error(request.id, "failed") if request else None
+
+
 def bye(reason: str) -> str:
     return json.dumps({"type": "bye", "reason": reason})
 
@@ -122,7 +143,7 @@ def bye(reason: str) -> str:
 def is_welcome(text: str) -> bool:
     try:
         message = json.loads(text)
-    except ValueError:
+    except (ValueError, RecursionError):
         return False
     return (
         isinstance(message, dict)
@@ -131,7 +152,8 @@ def is_welcome(text: str) -> bool:
     )
 
 
-_SERVICE = re.compile(r"^[a-z_]+\.[a-z_]+$")
+_SERVICE = re.compile(r"[a-z_]+\.[a-z_]+")
+_ENTITY_ID = re.compile(r"[a-z0-9_]{1,127}\.[a-z0-9_]{1,127}")
 #: Données d'un service, au plus.
 MAX_DATA_KEYS = 4
 #: Le secret du verrou vocal tel qu'il arrive, au plus : code chiffré ou mot de passe parlé.
@@ -170,7 +192,7 @@ def parse_request(text: str) -> Request | None:
     """Une requête bien formée, ou `None` : tout le reste est ignoré."""
     try:
         message = json.loads(text)
-    except ValueError:
+    except (ValueError, RecursionError):
         return None
     if not isinstance(message, dict) or message.get("type") != "request":
         return None
@@ -188,7 +210,7 @@ def parse_request(text: str) -> Request | None:
         if (
             not isinstance(ids, list)
             or not 0 < len(ids) <= MAX_READ
-            or not all(isinstance(i, str) and 0 < len(i) <= 255 for i in ids)
+            or not all(isinstance(i, str) and _ENTITY_ID.fullmatch(i) for i in ids)
             or not _secret_ok(code)
         ):
             return Request(request_id, "invalid")
@@ -200,9 +222,9 @@ def parse_request(text: str) -> Request | None:
         code = message.get("code")
         if (
             not isinstance(entity_id, str)
-            or not 0 < len(entity_id) <= 255
+            or not _ENTITY_ID.fullmatch(entity_id)
             or not isinstance(service, str)
-            or not _SERVICE.match(service)
+            or not _SERVICE.fullmatch(service)
             or not isinstance(data, dict)
             or len(data) > MAX_DATA_KEYS
             or not all(

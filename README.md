@@ -125,7 +125,8 @@ faut pour la sécurité ; si vous préférez faire autrement, vous décidez en c
 **Ce que le code ne couvre pas :** il dépend du type que Home Assistant donne à l’appareil. Un
 portail ou une serrure commandés par un interrupteur, un script ou une scène, ou un appareil sans
 classe, s’ouvrent sans code : ne les cochez en commande que si vous l’acceptez. Fermer un portail ou
-une porte de garage à distance ne demande jamais de code non plus. Un code accepté vaut jusqu’à la
+une porte de garage à distance ne demande jamais de code non plus, et un store ou un volet s’ouvrent
+sans code. Un code accepté vaut jusqu’à la
 fin de l’appel. Oscar vous reconnaît à votre seul numéro.
 
 | Réglage | Par défaut | Ce qu’il fait |
@@ -135,7 +136,8 @@ fin de l’appel. Oscar vous reconnaît à votre seul numéro.
 | **Appareils sans code** | aucun | Parmi les appareils partagés sous protection, ceux qu’Oscar lit et commande sans code, même cases cochées. Par exemple la porte du garage, pour demander « J’ai bien fermé le garage ? » sans code. |
 | **Code chiffré**, **Mot de passe parlé** | aucun | Les secrets, l’un ou l’autre. Laissez le champ vide pour garder ce qui est réglé ; **Effacer** efface chacun. |
 
-- Verrouiller, armer, fermer et arrêter ne demandent jamais de code.
+- Verrouiller, armer une alarme désarmée, fermer et arrêter ne demandent jamais de code. Changer le
+  mode d’une alarme armée ou déclenchée en demande un : c’est l’affaiblir.
 - Un secret n’est exigé que si une protection cochée porte sur un appareil partagé et non
   exempté ; sinon, rien n’est imposé. Effacer le dernier secret alors qu’il protège encore un
   appareil partagé est refusé.
@@ -196,10 +198,12 @@ après, sauf si vous vous êtes abonné entre-temps.
   tant que l’intégration est chargée.
 - **Liaison hors ligne** : elle se refait seule, avec un délai croissant (cinq minutes au plus).
 - **Nouveau code demandé** : la maison a été déliée ; saisissez un nouveau code.
+- **« Folonia : code faux »** : un code faux a été donné à Oscar. Si ce n’était pas vous, changez-le
+  et éteignez « Accès d’Oscar ».
 - **« Mettre à jour l’intégration Folonia »** : mettez-la à jour depuis la Marketplace (depuis HACS avant
   Home Assistant 2026.11).
 
-**Télécharger les diagnostics** donne l’état de la liaison et les dernières lignes du journal,
+**Télécharger les diagnostics** donne l’état de la liaison, des totaux et l’heure des dernières lignes du journal,
 sans secret ni code.
 
 ## Données

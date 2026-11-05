@@ -1,12 +1,14 @@
-"""Le verrou vocal : un secret choisi ici, vérifié ici, jamais connu de Folonia.
+"""Le verrou vocal : un secret choisi ici, vérifié ici, jamais gardé par Folonia.
 
 Deux secrets possibles, l'un ou l'autre suffit : un code de quatre à huit chiffres, dit ou
 tapé sur le clavier du téléphone, et un mot de passe parlé (un mot ou une courte phrase).
 Oscar transmet ce que la personne a donné avec la demande ; il est comparé ici aux
 empreintes, au code d'abord, puis au mot de passe. Cinq essais faux en vingt-quatre heures,
 code et mot de passe ensemble, bloquent le verrou : plus rien de ce qui est sous code
-jusqu'à ce que l'utilisateur rallume « Accès d'Oscar » ou enregistre un nouveau secret. Ce
-module ne dépend pas de Home Assistant.
+jusqu'à ce que l'utilisateur rallume « Accès d'Oscar » ou enregistre un nouveau secret ; le
+temps seul ne le débloque pas. Le secret passe par le service le temps de chaque demande : ce
+verrou arrête un essai à l'aveugle, pas un service compromis qui l'aurait capté. Ce module ne
+dépend pas de Home Assistant.
 """
 
 from __future__ import annotations
@@ -83,6 +85,8 @@ class VoiceLock:
         self._phrase_hash = phrase_hash
         self._phrase_salt = phrase_salt
         self.failures: deque[float] = deque()
+        #: Bloqué : le reste jusqu'au déblocage, même une fois les essais trop anciens.
+        self.blocked = False
 
     @property
     def fingerprint(self) -> tuple[str | None, str | None, str | None, str | None]:
@@ -107,7 +111,7 @@ class VoiceLock:
 
     def is_locked(self, now: float | None = None) -> bool:
         self._prune(now if now is not None else time.time())
-        return len(self.failures) >= LOCK_FAILURES
+        return self.blocked or len(self.failures) >= LOCK_FAILURES
 
     def check(self, code: str | None, now: float | None = None) -> str:
         """`ok`, `code_required`, `code_invalid`, `locked` ; `forbidden` sans secret réglé.
@@ -130,8 +134,12 @@ class VoiceLock:
             self.failures.clear()
             return "ok"
         self.failures.append(now)
-        return "locked" if len(self.failures) >= LOCK_FAILURES else "code_invalid"
+        if len(self.failures) >= LOCK_FAILURES:
+            self.blocked = True
+            return "locked"
+        return "code_invalid"
 
     def reset(self) -> None:
         """Déblocage : « Accès d'Oscar » rallumé, ou nouveau secret enregistré."""
         self.failures.clear()
+        self.blocked = False
