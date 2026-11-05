@@ -168,11 +168,12 @@ avec la demande, puis oublié.
 
 Oscar ne répète jamais un code ni un mot de passe.
 
-Si Home Assistant est éteint ou sans Internet, Oscar le dit tout de suite. Le titulaire du compte
+Si Home Assistant est éteint ou sans Internet, Oscar le dit tout de suite. Si un appareil lent ne
+répond pas à temps, il vous dit qu’il ne sait pas si c’est fait : vérifiez. Le titulaire du compte
 a accès à la maison, abonné ou pendant l’essai de 30 minutes. Les proches de votre abonnement et
 l’appel de découverte de deux minutes, sans compte, n’y ont pas accès. À la fin de l’essai, Oscar
-n’a plus accès à votre maison tant que vous n’êtes pas abonné ; la liaison reste en place jusqu’à
-ce que vous la déliiez.
+n’a plus accès à votre maison tant que vous n’êtes pas abonné ; la liaison est retirée 30 jours
+après, sauf si vous vous êtes abonné entre-temps.
 
 ## Couper, délier
 
