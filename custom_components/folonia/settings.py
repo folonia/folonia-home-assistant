@@ -164,7 +164,6 @@ def apply_choices(
     }
 
 
-@callback
 async def async_apply_secrets(
     hass: HomeAssistant, options: Mapping[str, Any], changes: Mapping[str, str | None]
 ) -> tuple[dict[str, Any], bool]:
