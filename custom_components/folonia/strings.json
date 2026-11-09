@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Link your home to Oscar",
-        "description": "In your Folonia account (Account, Home), get an eight-character code, valid for ten minutes, and enter it here.\n\nYour home connects to Folonia: no port is opened on your network, and Folonia never receives a Home Assistant token. By default, Oscar sees nothing: you will then choose, in the Folonia page of the sidebar, what he may read.\n\nNo Folonia account yet? [Try Oscar free for 30 minutes]({trial_url}), no card needed (French mobile numbers).",
+        "description": "In your Folonia account (Account, Home), get an eight-character code, valid for ten minutes, and enter it here.\n\nYour home connects to Folonia: no port is opened on your network, and Folonia never receives a Home Assistant token. By default, Oscar sees nothing: you will then choose, in the Folonia page of the sidebar, what he may read.",
         "data": {
           "code": "Code"
         },

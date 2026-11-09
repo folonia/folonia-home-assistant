@@ -28,7 +28,6 @@ from .const import (
     DEFAULT_URL,
     DOMAIN,
     PANEL_URL,
-    TRIAL_URL,
 )
 from .protocol import base_url, normalize_code
 
@@ -105,7 +104,6 @@ class FoloniaConfigFlow(ConfigFlow, domain=DOMAIN):
                 }
             ),
             errors=errors,
-            description_placeholders={"trial_url": TRIAL_URL},
         )
 
     async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> ConfigFlowResult:

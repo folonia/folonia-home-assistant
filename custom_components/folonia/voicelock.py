@@ -113,7 +113,15 @@ class VoiceLock:
         self._prune(now if now is not None else time.time())
         return self.blocked or len(self.failures) >= LOCK_FAILURES
 
-    def check(self, code: str | None, now: float | None = None) -> str:
+    def matches(self, code: str) -> bool:
+        """Le code ou le mot de passe correspond-il ? Calcul lent (PBKDF2) : hors de la boucle."""
+        return _matches(normalize_lock_code(code), self._hash, self._salt) or _matches(
+            normalize_passphrase(code), self._phrase_hash, self._phrase_salt
+        )
+
+    def check(
+        self, code: str | None, now: float | None = None, *, matched: bool | None = None
+    ) -> str:
         """`ok`, `code_required`, `code_invalid`, `locked` ; `forbidden` sans secret réglé.
 
         `code` est ce que la personne a donné : un code chiffré, dit ou tapé, ou un mot de
@@ -126,11 +134,8 @@ class VoiceLock:
             return "locked"
         if not code:
             return "code_required"
-        digits = normalize_lock_code(code)
-        phrase = normalize_passphrase(code)
-        if _matches(digits, self._hash, self._salt) or _matches(
-            phrase, self._phrase_hash, self._phrase_salt
-        ):
+        # `matched` : déjà calculé hors de la boucle d'événements par l'appelant.
+        if self.matches(code) if matched is None else matched:
             self.failures.clear()
             return "ok"
         self.failures.append(now)

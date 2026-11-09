@@ -22,7 +22,6 @@ from custom_components.folonia.const import (
     CONF_VERIFY_SSL,
     DEFAULT_URL,
     DOMAIN,
-    TRIAL_URL,
     VERSION,
 )
 
@@ -45,8 +44,6 @@ async def test_appariement_par_code(hass: HomeAssistant, folonia: tuple[FakeFolo
     fake, url = folonia
     result = await _start(hass)
     assert result["type"] is FlowResultType.FORM
-    # Sans compte, le formulaire n'est pas un cul-de-sac : il mène à l'essai.
-    assert result["description_placeholders"] == {"trial_url": TRIAL_URL}
     # L'adresse du service reste repliée : le formulaire ne montre que le code.
     fields = {str(key): value for key, value in result["data_schema"].schema.items()}
     assert set(fields) == {CONF_CODE, SECTION_ADVANCED}

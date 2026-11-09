@@ -345,9 +345,14 @@ class FoloniaLink:
     async def _verify(self, code: str | None, entity_id: str) -> str:
         """Le verrou vocal, pour une commande ou une lecture : les essais faux comptent pareil,
         code ou mot de passe, dit ou tapé."""
-        was_blocked = self.lock.blocked
-        had_failures = bool(self.lock.failures)
-        verdict = self.lock.check(code)
+        lock = self.lock
+        was_blocked = lock.blocked
+        had_failures = bool(lock.failures)
+        matched = None
+        if code and lock.configured and not lock.is_locked():
+            # 50 000 itérations de PBKDF2 : dans l'exécuteur, jamais dans la boucle d'événements.
+            matched = await self.hass.async_add_executor_job(lock.matches, code)
+        verdict = lock.check(code, matched=matched)
         if verdict in ("code_invalid", "locked") and code:
             self.journal.record("code du verrou vocal refusé", entity_id, refused=True)
             # Déjà bloqué : ni écriture ni notification de plus à chaque essai.

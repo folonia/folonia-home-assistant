@@ -165,7 +165,7 @@ def apply_choices(
 
 
 @callback
-def apply_secrets(
+async def async_apply_secrets(
     hass: HomeAssistant, options: Mapping[str, Any], changes: Mapping[str, str | None]
 ) -> tuple[dict[str, Any], bool]:
     """Les options avec les secrets réglés (texte) ou effacés (`None`) ; rien n'est gardé en clair.
@@ -190,7 +190,8 @@ def apply_secrets(
         secret = normalize(value)
         if secret is None:
             raise SettingsError(error)
-        new[hash_key], new[salt_key] = hash_code(secret)
+        # PBKDF2 : dans l'exécuteur, jamais dans la boucle d'événements.
+        new[hash_key], new[salt_key] = await hass.async_add_executor_job(hash_code, secret)
         if name == "phrase":
             weak = passphrase_is_weak(secret)
     if cleared and needs_secret(hass, new):

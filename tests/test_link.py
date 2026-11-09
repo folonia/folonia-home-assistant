@@ -679,3 +679,24 @@ def test_requetes_mal_formees_et_adresses_refusees() -> None:
     assert protocol.base_url("https://compte.folonia.fr@evil.example") is None
     assert protocol.base_url("http://evil.example") is None
     assert protocol.base_url("http://192.168.0.10:8080") == "http://192.168.0.10:8080"
+
+
+async def test_le_code_est_calcule_hors_de_la_boucle(
+    hass: HomeAssistant, linked: tuple[FakeFolonia, MockConfigEntry, list[Event]]
+) -> None:
+    """Revue HACS : 50 000 itérations de PBKDF2 gèleraient Home Assistant sur un Raspberry Pi."""
+    fake, entry, _ = linked
+    hass.config_entries.async_update_entry(
+        entry, options={**entry.options, CONF_CONTROL: ["lock.entree"]}
+    )
+    await hass.async_block_till_done()
+    jobs: list[str] = []
+    real = hass.async_add_executor_job
+
+    def spy(target, *args):
+        jobs.append(getattr(target, "__name__", ""))
+        return real(target, *args)
+
+    hass.async_add_executor_job = spy
+    await fake.request("command", entity_id="lock.entree", service="lock.unlock", code="1111")
+    assert "matches" in jobs

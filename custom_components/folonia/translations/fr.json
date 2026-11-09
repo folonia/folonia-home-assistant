@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Relier votre maison à Oscar",
-        "description": "Dans votre espace Folonia (Votre compte, Maison), obtenez un code de huit caractères, valable dix minutes, et saisissez-le ici.\n\nC’est votre maison qui se connecte à Folonia : aucun port n’est ouvert chez vous, et Folonia ne reçoit aucun jeton de Home Assistant. Par défaut, Oscar ne voit rien : vous choisirez ensuite, dans la page Folonia de la barre latérale, ce qu’il peut lire.\n\nPas encore de compte Folonia ? [Essayez Oscar 30 minutes gratuitement]({trial_url}), sans carte (mobiles français).",
+        "description": "Dans votre espace Folonia (Votre compte, Maison), obtenez un code de huit caractères, valable dix minutes, et saisissez-le ici.\n\nC’est votre maison qui se connecte à Folonia : aucun port n’est ouvert chez vous, et Folonia ne reçoit aucun jeton de Home Assistant. Par défaut, Oscar ne voit rien : vous choisirez ensuite, dans la page Folonia de la barre latérale, ce qu’il peut lire.",
         "data": {
           "code": "Code"
         },

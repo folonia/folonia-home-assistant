@@ -179,8 +179,8 @@ def ws_save(
     }
 )
 @websocket_api.require_admin
-@callback
-def ws_secret(
+@websocket_api.async_response
+async def ws_secret(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
     """Règle (texte) ou efface (`null`) le code chiffré, le mot de passe parlé, ou les deux.
@@ -194,7 +194,7 @@ def ws_secret(
         return
     changes = {name: msg[name] for name in settings.SECRETS if name in msg}
     try:
-        options, weak = settings.apply_secrets(hass, entry.options, changes)
+        options, weak = await settings.async_apply_secrets(hass, entry.options, changes)
     except settings.SettingsError as err:
         connection.send_error(msg["id"], err.code, ERRORS[err.code])
         return
